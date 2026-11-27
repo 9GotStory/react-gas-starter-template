@@ -60,7 +60,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │   │   └── feature_request.md       # เทมเพลตเสนอฟีเจอร์ (เสริมไม่ซ้ำกับ /to-spec และ /to-tickets)
 │   └── workflows/
 │       └── ci.yml                   # Offline CI merge gates: quality -> e2e (Node 26 LTS / npm 11, artifact handoff)
-├── .gitignore                       # ดัก .env*, .clasp.json, .clasprc.json, .scratch/, .claude/skills, .playwright-cli/, dist/
+├── .gitignore                       # ดัก .env*, .clasp*.json (คง .clasp.json.example), .clasprc.json, .scratch/, .claude/skills, .playwright-cli/, dist/
 ├── .nvmrc                           # ตรึง Node.js 26 Active LTS
 ├── package.json                     # Root workspaces, engines/packageManager (Node 26 / npm 11) & scripts
 ├── skills-lock.json                 # Unified skills manifest/lockfile ตรึง commit/version และ hash ครบทั้ง 15 สกิล
@@ -73,7 +73,9 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │   ├── agents-setup.mjs             # สคริปต์ตั้งค่า local adapter แบบ offline, opt-in และ non-destructive (Claude/Codex/Antigravity)
 │   ├── agents-setup.test.mjs        # Offline tests ยืนยัน idempotency และไม่ทับโฟลเดอร์/คอนฟิกเดิมของผู้ใช้
 │   ├── agents-check.mjs             # สคริปต์ตรวจ multi-agent drift แบบ offline ใน npm run check (ไม่ใช้ binary/network/credentials)
-│   └── agents-check.test.mjs        # Offline tests ตรวจ instruction drift, skills pin/frontmatter, MCP parity และ secret leakage
+│   ├── agents-check.test.mjs        # Offline tests ตรวจ instruction drift, skills pin/frontmatter, MCP parity และ secret leakage
+│   ├── gas-deploy.mjs               # Deployment safety guard สำหรับ clasp -P Staging/Production (build/bundle, ID isolation, clean Git, Prod confirm)
+│   └── gas-deploy.test.mjs          # Offline tests ของ deployment safety guard และกฎ .gitignore ด้วย temp fixtures
 ├── tests/
 │   ├── fixtures/
 │   │   └── items.ts                 # Shared plain Item fixtures + pure mock controller (dev mock & E2E)
@@ -86,8 +88,10 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │       ├── eslint.config.mjs        # ESLint config สำหรับชุด contract tests
 │       └── tsconfig.json            # TypeScript strict config สำหรับชุด contract tests
 ├── docs/
-│   └── adr/
-│       └── 0000-template.md         # เทมเพลต ADR พร้อมเกณฑ์กรอง 3 ข้อ
+│   ├── adr/
+│   │   └── 0000-template.md         # เทมเพลต ADR พร้อมเกณฑ์กรอง 3 ข้อ
+│   └── runbooks/
+│       └── deployment-and-operations.md # คู่มือปฏิบัติการ Staging/Production, Security Review, Release/Hotfix, Rollback, Migration & Cloud Logging
 ├── .agents/
 │   └── skills/                      # Canonical skills 15 ตัว: Matt Pocock 12 ตัว + UI/UX Pro Max + Vercel web-design-guidelines + Playwright CLI
 ├── frontend/
@@ -109,7 +113,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │       ├── App.tsx                  # หน้าตัวอย่าง WCAG 2.2 AA baseline (loading / empty / error / data / validation)
 │       └── App.test.tsx             # Component tests ด้วย Testing Library (GET/POST/validation/accessible queries)
 └── backend/
-    ├── .clasp.json.example          # ตัวอย่าง clasp config (srcDir: "dist")
+    ├── .clasp.json.example          # ตัวอย่าง clasp config (srcDir: "dist") สำหรับคัดลอกเป็น .clasp.staging.json / .clasp.prod.json
+    ├── .env.example                 # ตัวอย่าง metadata สำหรับ guard ตรวจชน ID (.env.staging / .env.prod ถูก gitignore)
     ├── appsscript.json              # Apps Script V8 Web App manifest (fail-closed: MYSELF + spreadsheets scope)
     ├── build.mjs                    # esbuild bundler -> dist/Code.js + dist/appsscript.json
     ├── eslint.config.js             # ESLint แยก GAS runtime source ออกจาก Node.js scripts
@@ -197,16 +202,27 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
    npm run gas:status
    ```
    > ผลลัพธ์จาก `npm run gas:status` (`clasp show-file-status`) ต้องแสดง **Tracked files** เฉพาะ `dist/Code.js` และ `dist/appsscript.json` เท่านั้น (ไม่รวมไฟล์เทสหรือ config)
-5. Deploy Web App ครั้งแรก (`gas:deploy` จะรัน `build && clasp push && clasp create-deployment` ให้อัตโนมัติ):
-   ```bash
-   npm run gas:deploy
-   ```
-   - หากแก้ไขโค้ดภายหลังและต้องการ **อัปเดต Deployment เดิมโดยไม่เปลี่ยน `/exec` URL** ให้ push โค้ดแล้วอัปเดตด้วย `deploymentId` เดิม:
+5. **แยก Environment ระหว่าง Staging (Integration + UAT) และ Production ด้วย `clasp -P` และ Safety Guard (แนะนำตาม ADR-0006):**
+   - คัดลอกไฟล์ตัวอย่างเป็นไฟล์เฉพาะเครื่อง (ทั้งหมดถูกดักใน `.gitignore` ด้วย `.clasp*.json` และ `.env*`):
      ```bash
-     npm run gas:push
-     npx --workspace=backend clasp list-deployments
-     npx --workspace=backend clasp update-deployment <deploymentId>
+     cp backend/.clasp.json.example backend/.clasp.staging.json
+     cp backend/.clasp.json.example backend/.clasp.prod.json
+     cp backend/.env.example backend/.env.staging
+     cp backend/.env.example backend/.env.prod
      ```
+   - ตั้งค่า `scriptId`, `GAS_DEPLOYMENT_ID` และ `SPREADSHEET_ID` ให้ **ไม่ซ้ำกันเด็ดขาด** ระหว่าง Staging และ Production (หลัง bootstrap `create-deployment` ครั้งแรก) แล้วใช้คำสั่งแบบ immutable versioned deployment (`build` → `verify:gas-bundle` → `clasp -P ... push` → `create-version` → `update-deployment` เพื่อคง `/exec` URL เดิม):
+     ```bash
+     # ทดสอบ pre-flight guard ก่อน push จริง (--dry-run)
+     npm run gas:deploy:staging -- --version v1.0.0-rc.1 --dry-run
+
+     # Deploy ขึ้น Staging (Integration + UAT)
+     npm run gas:deploy:staging -- --version v1.0.0-rc.1
+
+     # Promote commit เดียวกันขึ้น Production (บังคับ clean Git tree, SemVer, ไม่ให้รันใน CI และต้องยืนยันชัดเจน)
+     npm run gas:deploy:prod -- --version v1.0.0
+     ```
+   - อ่านขั้นตอนเต็มสำหรับ Security Review (`ANYONE_ANONYMOUS`), Release Candidate parity, Tag-based Hotfix, Safe Rollback (ห้าม auto-restore Google Sheet), Expand–Contract Schema Migration, Pre-deploy Snapshot และ Cloud Logging ได้ที่ [`docs/runbooks/deployment-and-operations.md`](docs/runbooks/deployment-and-operations.md)
+   - _(สำหรับโปรเจกต์ทดลองเดี่ยวแบบเร็ว คำสั่ง `npm run gas:deploy` / `npm run gas:push` แบบ `.clasp.json` เดี่ยวยังคงใช้งานได้ตามเดิม)_
 6. เปิด Apps Script Editor เพื่อตรวจสอบสิทธิ์ Deployment, **ตั้งค่า `SPREADSHEET_ID` ใน Project Settings → Script Properties (บังคับสำหรับทุก Deployment ตาม ADR-0002 — ไม่มี `getActiveSpreadsheet()` fallback และจะคืน `CONFIG_MISSING` หากไม่ตั้งค่า)** และคัดลอก Web App `/exec` URL ไปใส่ใน `frontend/.env` (`VITE_GAS_API_URL`):
    ```bash
    npm run gas:open
@@ -349,19 +365,27 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 สามารถเรียกผ่าน root (`npm run gas:*`) หรือระบุ `--workspace=backend` ได้โดยตรง:
 
-| คำสั่งจาก Root                            | คำสั่งจริงใน `backend/package.json`                         | คำอธิบาย                                                                                                                 |
-| --------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `npm --workspace=backend run build`     | `tsc --noEmit && node build.mjs`                         | Typecheck และ bundle `src/main.ts` → `dist/Code.js` + คัดลอก `dist/appsscript.json`                                      |
-| `npm --workspace=backend run typecheck` | `tsc --noEmit`                                           | ตรวจ TypeScript ฝั่ง backend พร้อม `@types/google-apps-script`                                                             |
-| `npm --workspace=backend run lint`      | `eslint .`                                               | รัน ESLint แยกขอบเขต GAS runtime (`src/**/*.ts`) และ Node.js scripts (`*.mjs`)                                           |
-| `npm --workspace=backend run test`      | `vitest run`                                             | รัน offline tests ใน `backend/` (pure logic, `doGet`/`doPost` integration, logger, ESLint boundary, GAS bundle verifier) |
-| `npm run verify:gas-bundle`             | `node verify-gas-bundle.mjs`                             | ตรวจ `backend/dist/` แบบ offline (ไฟล์, global `doGet`/`doPost`, manifest, size budget)                                  |
-| `npm run gas:login`                     | `clasp login`                                            | ล็อกอินบัญชี Google สำหรับ `@google/clasp`                                                                                   |
-| `npm run gas:status`                    | `clasp show-file-status`                                 | แสดงรายการไฟล์ใน `dist/` ที่ `clasp` track สำหรับการ push                                                                   |
-| `npm run gas:push`                      | `npm run build && clasp push`                            | Build `backend/dist/` แล้วอัปโหลดขึ้น Google Apps Script                                                                    |
-| `npm run gas:pull`                      | `clasp pull`                                             | ดึงไฟล์ล่าสุดจาก Google Apps Script                                                                                         |
-| `npm run gas:open`                      | `clasp open-script`                                      | เปิดโปรเจกต์ใน Apps Script Editor บนเบราว์เซอร์                                                                             |
-| `npm run gas:deploy`                    | `npm run build && clasp push && clasp create-deployment` | Build, push และสร้าง Web App deployment ใหม่                                                                              |
+| คำสั่งจาก Root                            | คำสั่งจริงใน `backend/package.json`                            | คำอธิบาย                                                                                                                    |
+| --------------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `npm --workspace=backend run build`     | `tsc --noEmit && node build.mjs`                            | Typecheck และ bundle `src/main.ts` → `dist/Code.js` + คัดลอก `dist/appsscript.json`                                         |
+| `npm --workspace=backend run typecheck` | `tsc --noEmit`                                              | ตรวจ TypeScript ฝั่ง backend พร้อม `@types/google-apps-script`                                                                |
+| `npm --workspace=backend run lint`      | `eslint .`                                                  | รัน ESLint แยกขอบเขต GAS runtime (`src/**/*.ts`) และ Node.js scripts (`*.mjs`)                                              |
+| `npm --workspace=backend run test`      | `vitest run`                                                | รัน offline tests ใน `backend/` (pure logic, `doGet`/`doPost` integration, logger, ESLint boundary, GAS bundle verifier)    |
+| `npm run verify:gas-bundle`             | `node verify-gas-bundle.mjs`                                | ตรวจ `backend/dist/` แบบ offline (ไฟล์, global `doGet`/`doPost`, manifest, size budget)                                     |
+| `npm run gas:login`                     | `clasp login`                                               | ล็อกอินบัญชี Google สำหรับ `@google/clasp`                                                                                      |
+| `npm run gas:status`                    | `clasp show-file-status`                                    | แสดงรายการไฟล์ใน `dist/` ที่ `clasp` track สำหรับการ push (single-env)                                                         |
+| `npm run gas:status:staging`            | `clasp -P .clasp.staging.json show-file-status`             | แสดงรายการไฟล์ที่ `clasp -P` track สำหรับ Staging                                                                              |
+| `npm run gas:status:prod`               | `clasp -P .clasp.prod.json show-file-status`                | แสดงรายการไฟล์ที่ `clasp -P` track สำหรับ Production                                                                           |
+| `npm run gas:push`                      | `npm run build && clasp push`                               | Build `backend/dist/` แล้วอัปโหลดขึ้น Google Apps Script (single-env)                                                          |
+| `npm run gas:push:staging`              | `node scripts/gas-deploy.mjs --env staging --action push`   | Guarded `clasp -P` push ขึ้น Staging (บังคับ build + `verify:gas-bundle` + ตรวจชน ID กับ Prod; รองรับ `-- --dry-run`)            |
+| `npm run gas:push:prod`                 | `node scripts/gas-deploy.mjs --env prod --action push`      | Guarded `clasp -P` push ขึ้น Production (เพิ่ม clean Git tree + block CI + ยืนยัน `PUSH PROD`)                                   |
+| `npm run gas:pull`                      | `clasp pull`                                                | ดึงไฟล์ล่าสุดจาก Google Apps Script                                                                                            |
+| `npm run gas:open`                      | `clasp open-script`                                         | เปิดโปรเจกต์ใน Apps Script Editor บนเบราว์เซอร์ (single-env)                                                                   |
+| `npm run gas:open:staging`              | `clasp -P .clasp.staging.json open-script`                  | เปิดโปรเจกต์ Staging ใน Apps Script Editor                                                                                   |
+| `npm run gas:open:prod`                 | `clasp -P .clasp.prod.json open-script`                     | เปิดโปรเจกต์ Production ใน Apps Script Editor                                                                                |
+| `npm run gas:deploy`                    | `npm run build && clasp push && clasp create-deployment`    | Build, push และสร้าง Web App deployment ใหม่ (single-env)                                                                    |
+| `npm run gas:deploy:staging`            | `node scripts/gas-deploy.mjs --env staging --action deploy` | Guarded immutable versioned deploy ขึ้น Staging (`push` → `create-version` → `update-deployment` ด้วย `clasp -P`)             |
+| `npm run gas:deploy:prod`               | `node scripts/gas-deploy.mjs --env prod --action deploy`    | Guarded immutable versioned deploy ขึ้น Production (บังคับ distinct IDs, clean Git, SemVer `--version`, block CI และยืนยันชัดเจน) |
 
 ---
 
@@ -394,8 +418,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 ไฟล์ความลับและไฟล์ทำงานเฉพาะเครื่องต่อไปนี้ถูกดักใน `.gitignore` และห้าม commit ขึ้น Git โดยเด็ดขาด:
 
-- `.env*` (ยกเว้น `.env.example`)
-- `.clasp.json` และ `.clasprc.json` (track เฉพาะ `backend/.clasp.json.example`)
+- `.env*` (ยกเว้น `.env.example` เช่น `frontend/.env.example`, `backend/.env.example`)
+- `.clasp*.json` และ `.clasprc.json` (track เฉพาะ `backend/.clasp.json.example`)
 - `.scratch/` (ที่พัก Specs และ Tickets แบบ local)
 - `.claude/skills` (local skills adapter สำหรับ Claude Code ที่สร้างจาก `npm run agents:setup -- --agent claude`)
 - `.playwright-cli/`, `playwright-report/`, `test-results/` (snapshots, reports และ artifacts จาก Playwright)

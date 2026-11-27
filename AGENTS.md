@@ -10,7 +10,7 @@
   - `.agents/skills/` — Canonical shared skills (15 skills pinned via `skills-lock.json`: 12 Matt Pocock workflow skills, `ui-ux-pro-max`, Vercel `web-design-guidelines`, and `playwright-cli`)
   - `CLAUDE.md` — Cross-platform plain-text Claude Code instruction adapter containing strictly `@AGENTS.md` (never a POSIX symlink; ADR-0007)
   - `.mcp.json` & `.codex/config.toml` — Secret-free project MCP server definitions kept in exact parity (`context7`, `playwright`); Antigravity global MCP (`~/.gemini/config/mcp_config.json`) is configured manually via `agents:setup` guidance and never mutated silently
-  - `scripts/` — Offline verification and pinned tooling scripts (`skills-sync.mjs`, `agents-setup.mjs`, `agents-check.mjs`)
+  - `scripts/` — Offline verification, deployment safety guard, and pinned tooling scripts (`skills-sync.mjs`, `agents-setup.mjs`, `agents-check.mjs`, `gas-deploy.mjs`)
   - `.claude/skills` — Gitignored local Claude Code skills adapter created non-destructively on demand via `npm run agents:setup -- --agent claude`
   - `.github/` — Offline GitHub Actions CI merge gates (`workflows/ci.yml`), weekly grouped Dependabot (`dependabot.yml`), and lean PR/Issue templates (`pull_request_template.md`, `ISSUE_TEMPLATE/`)
   - `.scratch/` — Local workspace for specs and tickets (`/to-spec`, `/to-tickets`, gitignored)
@@ -33,6 +33,7 @@ Run these exact commands from the repository root (do not guess scripts). Runtim
 - **Lint & Format:** `npm run lint && npm run format:check`
 - **Production Build:** `npm run build` (builds both `frontend/dist/` and `backend/dist/`)
 - **GAS Bundle Verification:** `npm run verify:gas-bundle` (offline check of `backend/dist/` file list, global `doGet`/`doPost` entrypoints, valid manifest JSON, and size budget)
+- **Guarded Staging/Production GAS Deployment (Connected Projects Only, ADR-0006):** `npm run gas:push:staging`, `npm run gas:deploy:staging`, `npm run gas:push:prod`, `npm run gas:deploy:prod` (and `gas:status:staging`/`prod`, `gas:open:staging`/`prod`) wrap `clasp -P` via `scripts/gas-deploy.mjs`, enforcing build + `verifyGasBundle`, strict `scriptId`/`deploymentId`/`SPREADSHEET_ID` distinctness between Staging and Production, clean Git tree + SemVer + explicit confirmation + CI auto-deploy block for Production, and immutable versioned deployment (`push` → `create-version` → `update-deployment`); supports `-- --dry-run`. Never execute against live GAS inside the unconnected Base Template.
 - **Interactive Browser QA:** Separate from automated `npm run test:e2e`, use **Playwright CLI** (`npx playwright-cli`, preferred for token efficiency) or **Playwright MCP** (`.mcp.json` / `.codex/config.toml` / Antigravity MCP config) — choose one per session (never both). In this Base Template, use the offline dev mock API (`npm run dev`) to verify UI, responsive layouts, and manual WCAG 2.2 AA keyboard/focus interactions without live GAS. Verify live GAS CORS, `script.googleusercontent.com` redirect, and JSON response reading in a real browser **only** in projects connected to a real GAS deployment.
 
 ## Source of Truth (Read on Demand)
@@ -42,6 +43,7 @@ Do NOT read all docs upfront. Load only when relevant to the current task:
 - `CODING_STANDARDS.md` — Read before writing code, refactoring, or running `/code-review`.
 - `GLOSSARY.md` — Read before `/grill-with-docs`, domain modeling, or writing specs to keep Sheet/UI terminology aligned.
 - `docs/adr/` — Check Architecture Decision Records (`0000-template.md`) before changing API contracts, Sheet schemas, or structural patterns.
+- `docs/runbooks/deployment-and-operations.md` — Read before Staging/Production environment setup, Security Review for `ANYONE_ANONYMOUS`, releases, tag-based hotfixes, rollbacks, Expand–Contract schema migrations, backups, or Cloud Logging diagnostics.
 - `design-system/` — Read `design-system/<project>/MASTER.md` and relevant `design-system/<project>/pages/` files (generated via `/ui-ux-pro-max`) before designing or building UI pages.
 - **Core vs. Optional UI/UX Skills (Non-Overlapping Roles):**
   - Core (pre-installed in `.agents/skills/`): `ui-ux-pro-max` generates design systems (`python3` is required **solely** for `ui-ux-pro-max/scripts/search.py` — never for application runtime, builds, or CI); Vercel `web-design-guidelines` audits UI code and accessibility against bundled offline rules; `playwright-cli` / Playwright MCP handles interactive Browser QA (choose one per session).
@@ -58,9 +60,9 @@ Do NOT read all docs upfront. Load only when relevant to the current task:
 
 ## Hard Guardrails
 
-- Never read, print, or commit `.env*`, `.clasp.json`, `.clasprc.json`, Spreadsheet IDs, or API secrets.
-- **Base Template boundary:** Never create a GAS project, bind Google Sheets, run `clasp push`/`deploy` (`npm run gas:push`, `npm run gas:deploy`), or request Google credentials to test this Base Template.
-- Never run destructive Sheet operations, `npm run gas:push`, or `npm run gas:deploy` in connected projects without explicit user confirmation.
+- Never read, print, or commit `.env*`, `.clasp*.json`, `.clasprc.json`, Spreadsheet IDs, or API secrets.
+- **Base Template boundary:** Never create a GAS project, bind Google Sheets, run `clasp push`/`deploy` (`npm run gas:push*`, `npm run gas:deploy*`), or request Google credentials to test this Base Template.
+- Never run destructive Sheet operations, `npm run gas:push*`, or `npm run gas:deploy*` in connected projects without explicit user confirmation.
 - Do not manually edit generated or dependency directories (`node_modules/`, `dist/`, `build/`).
 - No `useEffect` + `fetch` in `frontend/` — use `gasClient` + TanStack Query hooks only; enforce configurable 20s timeout (`TIMEOUT`) distinct from caller cancellation (`ABORTED`), support absolute and relative URLs, classify HTTP 200 HTML/non-JSON responses as `NON_JSON_RESPONSE`, retry queries at most once strictly on transient errors (`TIMEOUT`, `NETWORK_ERROR`, `LOCK_TIMEOUT`, HTTP `429`/`5xx`) with `mutations.retry = 0`, and send GAS `POST` as `text/plain;charset=utf-8` or `application/x-www-form-urlencoded` without unnecessary custom headers (avoid CORS preflight).
 - Require explicit `SPREADSHEET_ID` from Script Properties (`CONFIG_MISSING` when unset; no `getActiveSpreadsheet()` fallback — ADR-0002), keep `doGet` strictly read-only, use batch Sheets I/O only, apply `.setNumberFormat("@")` to all `Item` text columns (`id`, `code`, `name`, `createdAt`) before `.setValues()`, filter blank rows and normalize `Date` cells to ISO-8601 on read, wrap writes + `SpreadsheetApp.flush()` in `LockService.getScriptLock()` (`finally` release), sanitize formula injection (`=`, `+`, `-`, `@`, `\t`, `\r`), emit structured JSON logs without secrets/PII/Spreadsheet IDs with generic `INTERNAL_ERROR` responses, and respect official GAS quotas without premature quota-management frameworks.

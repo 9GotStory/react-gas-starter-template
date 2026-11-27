@@ -11,10 +11,18 @@
     "verify:gas-bundle": "node verify-gas-bundle.mjs",
     "gas:login": "clasp login",
     "gas:status": "clasp show-file-status",
+    "gas:status:staging": "clasp -P .clasp.staging.json show-file-status",
+    "gas:status:prod": "clasp -P .clasp.prod.json show-file-status",
     "gas:push": "npm run build && clasp push",
+    "gas:push:staging": "node ../scripts/gas-deploy.mjs --env staging --action push",
+    "gas:push:prod": "node ../scripts/gas-deploy.mjs --env prod --action push",
     "gas:pull": "clasp pull",
     "gas:open": "clasp open-script",
-    "gas:deploy": "npm run build && clasp push && clasp create-deployment"
+    "gas:open:staging": "clasp -P .clasp.staging.json open-script",
+    "gas:open:prod": "clasp -P .clasp.prod.json open-script",
+    "gas:deploy": "npm run build && clasp push && clasp create-deployment",
+    "gas:deploy:staging": "node ../scripts/gas-deploy.mjs --env staging --action deploy",
+    "gas:deploy:prod": "node ../scripts/gas-deploy.mjs --env prod --action deploy"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
