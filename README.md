@@ -27,7 +27,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
   - **Browser QA ด้วย Playwright CLI / MCP:** ใช้ `npx playwright-cli` (ประหยัด token) หรือ **Playwright MCP** ใน `.mcp.json` เลือกใช้อย่างใดอย่างหนึ่ง (ไม่ต้องใช้พร้อมกัน และยังไม่เพิ่ม Playwright E2E test suite ล่วงหน้า)
     - **ใน Base Template (Offline):** ใช้ **Mock API** ทดสอบ UI, Responsive และ Interactions โดยไม่ต้องเชื่อมต่อ GAS จริง
     - **ในโปรเจกต์ที่เชื่อมต่อ GAS จริงแล้วเท่านั้น:** ทดสอบ CORS, HTTP `302` redirect ไป `script.googleusercontent.com` และการอ่าน JSON Response ผ่าน Browser จริงก่อนสรุปว่าใช้งานได้
-  - การันตีพฤติกรรม GAS runtime ตามเอกสารทางการ: ใช้ Batch Read/Write และล็อกการเขียนพร้อมกันด้วย `LockService.getScriptLock().tryLock()` + ปลดล็อกใน `finally`, คงรหัสที่มีเลข 0 นำหน้า (เช่น `054`, `00123`) เป็น String ตลอดระบบ (`String(value ?? '')` + `.setNumberFormat("@")` ก่อน `.setValues()`), กัน Formula Injection (`=`, `+`, `-`, `@`), คืน JSON envelope (`{ ok: true, data }` / `{ ok: false, error }`) เพราะ `ContentService` ตั้ง HTTP status code หรือ custom response headers เองไม่ได้ และคำนึงถึง [GAS Quotas](https://developers.google.com/apps-script/guides/services/quotas) (6 นาที/execution, 30 concurrent/user, 1,000/script) โดยไม่สร้างระบบจัดการโควตาซับซ้อนล่วงหน้า
+  - การันตีพฤติกรรม GAS runtime ตามเอกสารทางการ: บังคับอ่าน `SPREADSHEET_ID` จาก Script Properties โดยไม่ fallback ไป `getActiveSpreadsheet()` (`CONFIG_MISSING`, ADR-0002), `doGet` เป็น read-only ล้วน (คืน `[]` เมื่อยังไม่มีชีต/ข้อมูล และคืน `SCHEMA_ERROR` เมื่อ header ผิด), ใช้ Batch Read/Write และล็อกการสร้างชีต/เขียนพร้อมกันใน `doPost` ด้วย `LockService.getScriptLock().tryLock()` + `SpreadsheetApp.flush()` + ปลดล็อกใน `finally` เสมอ, คงทุกคอลัมน์ข้อความของ `Item` (`id`, `code`, `name`, `createdAt`) ด้วย `.setNumberFormat("@")` ก่อน `.setValues()` พร้อมกรองแถวว่างและแปลง `Date` เป็น ISO-8601 ตอนอ่าน, ตรวจชนิด string/ความยาว/ขนาด payload และกัน Formula Injection (`=`, `+`, `-`, `@`, `\t`, `\r`), บันทึก log แบบ Structured JSON ผ่าน `console` โดยไม่หลุด secrets/PII/Spreadsheet ID และคืน canonical error envelope (`CONFIG_MISSING`, `SCHEMA_ERROR`, `INVALID_JSON`, `INVALID_ACTION`, `VALIDATION_ERROR`, `LOCK_TIMEOUT`, `INTERNAL_ERROR` แบบ generic message) เพราะ `ContentService` ตั้ง HTTP status code หรือ custom response headers เองไม่ได้ และคำนึงถึง [GAS Quotas](https://developers.google.com/apps-script/guides/services/quotas) (6 นาที/execution, 30 concurrent/user, 1,000/script) โดยไม่สร้างระบบจัดการโควตาซับซ้อนล่วงหน้า
 - **AI Tooling & Docs:**
   - `AGENTS.md` (พร้อม symlink `CLAUDE.md -> AGENTS.md`) แบบ Read on Demand, `CODING_STANDARDS.md` (แบ่ง Capabilities เป็น Core / Optional / Project-Specific), `GLOSSARY.md`, `docs/adr/0000-template.md`
   - `.mcp.json` ตั้งค่า **Context7 MCP** (`@upstash/context7-mcp`) และ **Playwright MCP** (`@playwright/mcp@latest`) ร่วมกัน
@@ -81,8 +81,11 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
     │   ├── Code.js                  # ไฟล์ที่ bundle พร้อม global doGet / doPost
     │   └── appsscript.json          # Manifest ที่คัดลอกมาเพื่อ push
     └── src/
-        ├── main.ts                  # Typed doGet / doPost, LockService, batch Sheets I/O
-        ├── sheetsLogic.ts           # Pure logic: schema mapping, validation, sanitize formula
+        ├── logger.ts                # Structured JSON logger (Cloud Logging, ตัด secrets/PII/Spreadsheet ID)
+        ├── logger.test.ts           # Unit tests ของ structured logger และการกรอง sensitive keys
+        ├── main.ts                  # Typed doGet (read-only) / doPost, LockService + flush, batch Sheets I/O
+        ├── main.test.ts             # Offline integration tests ของ doGet/doPost ด้วย in-memory GAS doubles
+        ├── sheetsLogic.ts           # Pure logic: schema mapping, strict validation, formula neutralization
         └── sheetsLogic.test.ts      # Offline Vitest unit tests
 ```
 
@@ -144,7 +147,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
      npx --workspace=backend clasp list-deployments
      npx --workspace=backend clasp update-deployment <deploymentId>
      ```
-6. เปิด Apps Script Editor เพื่อตรวจสอบสิทธิ์ Deployment, ตั้งค่า `SPREADSHEET_ID` ใน **Project Settings → Script Properties** (กรณีใช้ standalone script) และคัดลอก Web App `/exec` URL ไปใส่ใน `frontend/.env` (`VITE_GAS_API_URL`):
+6. เปิด Apps Script Editor เพื่อตรวจสอบสิทธิ์ Deployment, **ตั้งค่า `SPREADSHEET_ID` ใน Project Settings → Script Properties (บังคับสำหรับทุก Deployment ตาม ADR-0002 — ไม่มี `getActiveSpreadsheet()` fallback และจะคืน `CONFIG_MISSING` หากไม่ตั้งค่า)** และคัดลอก Web App `/exec` URL ไปใส่ใน `frontend/.env` (`VITE_GAS_API_URL`):
    ```bash
    npm run gas:open
    ```
@@ -280,19 +283,19 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 สามารถเรียกผ่าน root (`npm run gas:*`) หรือระบุ `--workspace=backend` ได้โดยตรง:
 
-| คำสั่งจาก Root                            | คำสั่งจริงใน `backend/package.json`                         | คำอธิบาย                                                                                |
-| --------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `npm --workspace=backend run build`     | `tsc --noEmit && node build.mjs`                         | Typecheck และ bundle `src/main.ts` → `dist/Code.js` + คัดลอก `dist/appsscript.json`     |
-| `npm --workspace=backend run typecheck` | `tsc --noEmit`                                           | ตรวจ TypeScript ฝั่ง backend พร้อม `@types/google-apps-script`                            |
-| `npm --workspace=backend run lint`      | `eslint .`                                               | รัน ESLint แยกขอบเขต GAS runtime (`src/**/*.ts`) และ Node.js scripts (`*.mjs`)          |
-| `npm --workspace=backend run test`      | `vitest run`                                             | รัน offline tests ใน `backend/` (pure logic, ESLint boundary, GAS bundle verifier)      |
-| `npm run verify:gas-bundle`             | `node verify-gas-bundle.mjs`                             | ตรวจ `backend/dist/` แบบ offline (ไฟล์, global `doGet`/`doPost`, manifest, size budget) |
-| `npm run gas:login`                     | `clasp login`                                            | ล็อกอินบัญชี Google สำหรับ `@google/clasp`                                                  |
-| `npm run gas:status`                    | `clasp show-file-status`                                 | แสดงรายการไฟล์ใน `dist/` ที่ `clasp` track สำหรับการ push                                  |
-| `npm run gas:push`                      | `npm run build && clasp push`                            | Build `backend/dist/` แล้วอัปโหลดขึ้น Google Apps Script                                   |
-| `npm run gas:pull`                      | `clasp pull`                                             | ดึงไฟล์ล่าสุดจาก Google Apps Script                                                        |
-| `npm run gas:open`                      | `clasp open-script`                                      | เปิดโปรเจกต์ใน Apps Script Editor บนเบราว์เซอร์                                            |
-| `npm run gas:deploy`                    | `npm run build && clasp push && clasp create-deployment` | Build, push และสร้าง Web App deployment ใหม่                                             |
+| คำสั่งจาก Root                            | คำสั่งจริงใน `backend/package.json`                         | คำอธิบาย                                                                                                                 |
+| --------------------------------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `npm --workspace=backend run build`     | `tsc --noEmit && node build.mjs`                         | Typecheck และ bundle `src/main.ts` → `dist/Code.js` + คัดลอก `dist/appsscript.json`                                      |
+| `npm --workspace=backend run typecheck` | `tsc --noEmit`                                           | ตรวจ TypeScript ฝั่ง backend พร้อม `@types/google-apps-script`                                                             |
+| `npm --workspace=backend run lint`      | `eslint .`                                               | รัน ESLint แยกขอบเขต GAS runtime (`src/**/*.ts`) และ Node.js scripts (`*.mjs`)                                           |
+| `npm --workspace=backend run test`      | `vitest run`                                             | รัน offline tests ใน `backend/` (pure logic, `doGet`/`doPost` integration, logger, ESLint boundary, GAS bundle verifier) |
+| `npm run verify:gas-bundle`             | `node verify-gas-bundle.mjs`                             | ตรวจ `backend/dist/` แบบ offline (ไฟล์, global `doGet`/`doPost`, manifest, size budget)                                  |
+| `npm run gas:login`                     | `clasp login`                                            | ล็อกอินบัญชี Google สำหรับ `@google/clasp`                                                                                   |
+| `npm run gas:status`                    | `clasp show-file-status`                                 | แสดงรายการไฟล์ใน `dist/` ที่ `clasp` track สำหรับการ push                                                                   |
+| `npm run gas:push`                      | `npm run build && clasp push`                            | Build `backend/dist/` แล้วอัปโหลดขึ้น Google Apps Script                                                                    |
+| `npm run gas:pull`                      | `clasp pull`                                             | ดึงไฟล์ล่าสุดจาก Google Apps Script                                                                                         |
+| `npm run gas:open`                      | `clasp open-script`                                      | เปิดโปรเจกต์ใน Apps Script Editor บนเบราว์เซอร์                                                                             |
+| `npm run gas:deploy`                    | `npm run build && clasp push && clasp create-deployment` | Build, push และสร้าง Web App deployment ใหม่                                                                              |
 
 ---
 
