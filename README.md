@@ -31,10 +31,11 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
     - **ใน Base Template (Offline):** ใช้ Dev-Only Mock API (`npm run dev`) ทดสอบ UI, Responsive และ manual WCAG 2.2 AA keyboard/focus interactions โดยไม่ต้องเชื่อมต่อ GAS จริง
     - **ในโปรเจกต์ที่เชื่อมต่อ GAS จริงแล้วเท่านั้น:** ทดสอบ CORS, HTTP `302` redirect ไป `script.googleusercontent.com` และการอ่าน JSON Response ผ่าน Browser จริงก่อนสรุปว่าใช้งานได้
   - การันตีพฤติกรรม GAS runtime ตามเอกสารทางการ: บังคับอ่าน `SPREADSHEET_ID` จาก Script Properties โดยไม่ fallback ไป `getActiveSpreadsheet()` (`CONFIG_MISSING`, ADR-0002), `doGet` เป็น read-only ล้วน (คืน `[]` เมื่อยังไม่มีชีต/ข้อมูล และคืน `SCHEMA_ERROR` เมื่อ header ผิด), ใช้ Batch Read/Write และล็อกการสร้างชีต/เขียนพร้อมกันใน `doPost` ด้วย `LockService.getScriptLock().tryLock()` + `SpreadsheetApp.flush()` + ปลดล็อกใน `finally` เสมอ, คงทุกคอลัมน์ข้อความของ `Item` (`id`, `code`, `name`, `createdAt`) ด้วย `.setNumberFormat("@")` ก่อน `.setValues()` พร้อมกรองแถวว่างและแปลง `Date` เป็น ISO-8601 ตอนอ่าน, ตรวจชนิด string/ความยาว/ขนาด payload และกัน Formula Injection (`=`, `+`, `-`, `@`, `\t`, `\r`), บันทึก log แบบ Structured JSON ผ่าน `console` โดยไม่หลุด secrets/PII/Spreadsheet ID และคืน canonical error envelope (`CONFIG_MISSING`, `SCHEMA_ERROR`, `INVALID_JSON`, `INVALID_ACTION`, `VALIDATION_ERROR`, `LOCK_TIMEOUT`, `INTERNAL_ERROR` แบบ generic message) เพราะ `ContentService` ตั้ง HTTP status code หรือ custom response headers เองไม่ได้ และคำนึงถึง [GAS Quotas](https://developers.google.com/apps-script/guides/services/quotas) (6 นาที/execution, 30 concurrent/user, 1,000/script) โดยไม่สร้างระบบจัดการโควตาซับซ้อนล่วงหน้า
-- **AI Tooling & Docs:**
-  - `AGENTS.md` (พร้อม symlink `CLAUDE.md -> AGENTS.md`) แบบ Read on Demand, `CODING_STANDARDS.md` (แบ่ง Capabilities เป็น Core / Optional / Project-Specific), `GLOSSARY.md`, `docs/adr/0000-template.md`
-  - `.mcp.json` ตั้งค่า **Context7 MCP** (`@upstash/context7-mcp`) และ **Playwright MCP** (`@playwright/mcp@latest`) ร่วมกัน
-  - `.agents/skills/` ติดตั้งเฉพาะชุด **Canonical Shared Skills 15 ตัว** ที่ตรึงเวอร์ชัน/commit hash ชัดเจนใน `skills-lock.json` (ไม่ auto-upgrade เป็น `latest` และไม่ผูกกับเอเจนต์ใดเอเจนต์หนึ่ง): **Matt Pocock Workflow 12 ตัว**, **UI/UX Pro Max** (ออกแบบ Design System — `python3` จำเป็น**เฉพาะ**สำหรับสคริปต์ `search.py` ของสกิลนี้เท่านั้น ไม่จำเป็นสำหรับ Application Runtime, Build หรือ CI), **Vercel `web-design-guidelines`** (ตรวจสอบคุณภาพ UI และ Accessibility แบบ offline จาก ruleset ที่แนบมา) และ **Playwright CLI Skill** (`.agents/skills/playwright-cli/` สำหรับ Interactive Browser QA) ส่วน **Anthropic `frontend-design`** และ **Impeccable** ถูกจัดอยู่ในระดับ **Optional** (ไม่ได้ติดตั้งล่วงหน้าใน Base Template) เพื่อไม่ให้บทบาทซ้ำซ้อนกัน
+- **AI Tooling & Docs (Multi-Agent SSOT — Antigravity, Claude Code, Codex CLI, ADR-0007):**
+  - `AGENTS.md` เป็น Single Source of Truth สำหรับคำสั่งโครงการแบบ Read on Demand, `CLAUDE.md` เป็นไฟล์ข้อความธรรมดาที่มีเฉพาะ `@AGENTS.md` (ไม่ใช้ POSIX symlink เพื่อให้ใช้งานเหมือนกันทั้ง Windows, Linux และ macOS), `CODING_STANDARDS.md` (แบ่ง Capabilities เป็น Core / Optional / Project-Specific), `GLOSSARY.md`, `docs/adr/`
+  - `.mcp.json` (Claude Code) และ `.codex/config.toml` (OpenAI Codex CLI) กำหนด **Context7 MCP** (`@upstash/context7-mcp`) และ **Playwright MCP** (`@playwright/mcp@latest`) ตรงกันทุกตัวแบบ **zero secrets** ส่วน **Antigravity** (`~/.gemini/config/mcp_config.json`) มีคู่มือและ snippet ให้ตั้งค่าด้วยตนเองโดยไม่แก้ไฟล์ใน home directory อัตโนมัติ
+  - `.agents/skills/` เป็นโฟลเดอร์สกิลกลางเพียงจุดเดียวที่ commit ใน Git ติดตั้งเฉพาะชุด **Canonical Shared Skills 15 ตัว** ที่ตรึงเวอร์ชัน/commit hash ชัดเจนใน `skills-lock.json` (ไม่ auto-upgrade เป็น `latest` และไม่ผูกกับเอเจนต์ใดเอเจนต์หนึ่ง): **Matt Pocock Workflow 12 ตัว**, **UI/UX Pro Max** (ออกแบบ Design System — `python3` จำเป็น**เฉพาะ**สำหรับสคริปต์ `search.py` ของสกิลนี้เท่านั้น ไม่จำเป็นสำหรับ Application Runtime, Build หรือ CI), **Vercel `web-design-guidelines`** (ตรวจสอบคุณภาพ UI และ Accessibility แบบ offline จาก ruleset ที่แนบมา) และ **Playwright CLI Skill** (`.agents/skills/playwright-cli/` สำหรับ Interactive Browser QA) ส่วน **Anthropic `frontend-design`** และ **Impeccable** ถูกจัดอยู่ในระดับ **Optional** (ไม่ได้ติดตั้งล่วงหน้าใน Base Template) เพื่อไม่ให้บทบาทซ้ำซ้อนกัน
+  - `.claude/skills` ถูก gitignore ไว้และสร้างเฉพาะเครื่องเมื่อผู้ใช้ opt-in ผ่าน `npm run agents:setup -- --agent claude` (offline, idempotent, non-destructive ไม่ทับโฟลเดอร์/คอนฟิกเดิมของผู้ใช้) และตรวจ drift แบบ offline ใน `npm run check` ด้วย `npm run agents:check` โดยไม่ต้องติดตั้ง binary ของ AI agent, credentials หรืออินเทอร์เน็ต
 
 ---
 
@@ -42,12 +43,14 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 ```text
 .
-├── AGENTS.md                        # คู่มือหลักแบบ Read on Demand สำหรับ AI Agent
-├── CLAUDE.md -> AGENTS.md           # Symlink สำหรับ Claude Code
+├── AGENTS.md                        # คู่มือหลักแบบ Read on Demand สำหรับ AI Agent (SSOT)
+├── CLAUDE.md                        # ไฟล์ข้อความธรรมดา (@AGENTS.md) รองรับ Windows/Linux/macOS ไม่ใช้ POSIX symlink
 ├── CODING_STANDARDS.md              # กฎสถาปัตยกรรม FE/GAS ความปลอดภัย การเทส และข้อยกเว้น
 ├── GLOSSARY.md                      # โครงเปล่าสำหรับคำศัพท์โดเมนและ Sheet-to-entity mapping
-├── .mcp.json                        # การตั้งค่า Context7 MCP + Playwright MCP
-├── .gitignore                       # ดัก .env*, .clasp.json, .clasprc.json, .scratch/, .playwright-cli/, dist/
+├── .mcp.json                        # การตั้งค่า Context7 MCP + Playwright MCP สำหรับ Claude Code (zero secrets)
+├── .codex/
+│   └── config.toml                  # การตั้งค่า Context7 MCP + Playwright MCP สำหรับ Codex CLI (parity กับ .mcp.json)
+├── .gitignore                       # ดัก .env*, .clasp.json, .clasprc.json, .scratch/, .claude/skills, .playwright-cli/, dist/
 ├── .nvmrc                           # ตรึง Node.js 26 Active LTS
 ├── package.json                     # Root workspaces, engines/packageManager (Node 26 / npm 11) & scripts
 ├── skills-lock.json                 # Unified skills manifest/lockfile ตรึง commit/version และ hash ครบทั้ง 15 สกิล
@@ -56,7 +59,11 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 ├── scripts/
 │   ├── eslint.config.mjs            # ESLint config สำหรับ Node.js tooling scripts
 │   ├── skills-sync.mjs              # สคริปต์ซิงก์และตรวจสกิลแบบ agent-neutral ตาม pin ใน skills-lock.json
-│   └── skills-sync.test.mjs         # Offline tests ตรวจ pin, frontmatter, hash และ dry-run/sync ของ skills-sync
+│   ├── skills-sync.test.mjs         # Offline tests ตรวจ pin, frontmatter, hash และ dry-run/sync ของ skills-sync
+│   ├── agents-setup.mjs             # สคริปต์ตั้งค่า local adapter แบบ offline, opt-in และ non-destructive (Claude/Codex/Antigravity)
+│   ├── agents-setup.test.mjs        # Offline tests ยืนยัน idempotency และไม่ทับโฟลเดอร์/คอนฟิกเดิมของผู้ใช้
+│   ├── agents-check.mjs             # สคริปต์ตรวจ multi-agent drift แบบ offline ใน npm run check (ไม่ใช้ binary/network/credentials)
+│   └── agents-check.test.mjs        # Offline tests ตรวจ instruction drift, skills pin/frontmatter, MCP parity และ secret leakage
 ├── tests/
 │   ├── fixtures/
 │   │   └── items.ts                 # Shared plain Item fixtures + pure mock controller (dev mock & E2E)
@@ -138,10 +145,23 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
    ```bash
    npm run skills:sync
    ```
-6. ตรวจสอบทุกอย่างครบจบในคำสั่งเดียวแบบ Offline (`check` + `build` + `verify:gas-bundle` + Playwright E2E & Axe):
+6. _(ทางเลือก — Multi-Agent Local Setup)_ เลือกตั้งค่าเฉพาะ AI Agent ที่คุณใช้งานจริงแบบ opt-in, offline และ non-destructive (ไม่ทับโฟลเดอร์สกิลเดิมและไม่แก้ไฟล์ใน home directory อัตโนมัติ; เพิ่ม `-- --dry-run` เพื่อดูแผนก่อนได้):
+   ```bash
+   # สำหรับ Claude Code: สร้าง gitignored adapter .claude/skills -> ../.agents/skills (Windows junction / POSIX symlink)
+   npm run agents:setup -- --agent claude
+
+   # สำหรับ OpenAI Codex CLI: ยืนยัน AGENTS.md, .agents/skills/ และ .codex/config.toml โดยไม่ทับไฟล์เดิม
+   npm run agents:setup -- --agent codex
+
+   # สำหรับ Antigravity: พิมพ์ JSON snippet สำหรับนำไปเพิ่มเองใน ~/.gemini/config/mcp_config.json (ไม่แก้ไฟล์ home อัตโนมัติ)
+   npm run agents:setup -- --agent antigravity
+   ```
+   > **Antigravity Global MCP Setup (Manual):** คัดลอก `mcpServers` (`context7` และ `playwright`, zero secrets) ที่ได้จากคำสั่งด้านบนหรือจาก `.mcp.json` ไปรวมไว้ใน `~/.gemini/config/mcp_config.json` ด้วยตนเอง เพื่อไม่ให้สคริปต์แตะคอนฟิกส่วนตัวของคุณโดยพลการ
+7. ตรวจสอบทุกอย่างครบจบในคำสั่งเดียวแบบ Offline (`check` ซึ่งรวม `agents:check` + `build` + `verify:gas-bundle` + Playwright E2E & Axe):
    ```bash
    npm run verify
    ```
+   > **หมายเหตุ (`agents:check`):** `npm run agents:check` รันแบบ offline เต็มรูปแบบ (ไม่ต้องติดตั้ง binary ของ AI agent, credentials หรืออินเทอร์เน็ต) เพื่อตรวจ drift ของคำสั่ง (`AGENTS.md`/`CLAUDE.md`), สกิลที่ตรึงไว้, MCP parity และ secret leakage โดยทำหน้าที่เป็น automated drift gate เท่านั้น และไม่แทนที่การทดสอบใช้งานจริงใน Antigravity, Claude Code และ Codex CLI
 
 ### ขั้นที่ 2: ผูก Google Apps Script ด้วย `@google/clasp` v3 _(เฉพาะโปรเจกต์จริงที่สร้างจาก Template แล้วเท่านั้น)_
 
@@ -187,15 +207,15 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
    npm run dev
    ```
 
-### ขั้นที่ 3: ตั้งค่าสกิลใน Antigravity (ทำครั้งเดียวต่อโปรเจกต์)
+### ขั้นที่ 3: ตั้งค่าสกิลสำหรับ AI Agent (ทำครั้งเดียวต่อโปรเจกต์ — Antigravity / Claude Code / Codex CLI)
 
-เปิด **แชทใหม่** ใน Antigravity แล้วรันคำสั่ง:
+เปิด **แชทใหม่** ใน Antigravity, Claude Code หรือ Codex CLI (ใช้ `.agents/skills/` และ `AGENTS.md` ชุดเดียวกัน) แล้วรันคำสั่ง:
 
 ```text
 /setup-matt-pocock-skills
 ```
 
-เพื่อผูกการทำงานของชุดสกิล Matt Pocock ให้เก็บ Specs และ Tickets ลงโฟลเดอร์ `.scratch/` (ซึ่งถูก gitignore ไว้เรียบร้อย)
+เพื่อผูกการทำงานของชุดสกิล Matt Pocock เข้ากับ Issue Tracker (ค่าเริ่มต้นของ Template นี้ตั้งค่าไว้ที่ GitHub Issues ใน `docs/agents/issue-tracker.md` หรือปรับใช้ `.scratch/` สำหรับงาน local ตามต้องการ)
 
 ---
 
@@ -299,7 +319,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run dev`                                               | เปิด Vite dev server ของ `frontend/` พร้อม dev-only offline mock API ที่ `/api/gas` เมื่อยังไม่ตั้ง `VITE_GAS_API_URL`                                                                        |
 | `npm run build`                                             | Build ทั้ง `frontend/dist/` (Vite, ไม่มี dev mock) และ `backend/dist/` (`esbuild` สำหรับ GAS)                                                                                            |
-| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง `frontend`, `backend`, `contract` และ `tooling`                                                                    |
+| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` + `agents:check` ทั้ง `frontend`, `backend`, `contract` และ `tooling`                                                   |
 | `npm run verify:gas-bundle`                                 | ตรวจ `backend/dist/` แบบ offline (เฉพาะ `Code.js` + `appsscript.json`, global `doGet`/`doPost`, size budget)                                                                        |
 | `npm run test:e2e`                                          | รัน Playwright E2E + responsive + `@axe-core/playwright` WCAG 2.2 AA กับ production bundle (`vite preview`)                                                                           |
 | `npm run verify`                                            | รัน offline quality gate ครบชุด (`check` → `build` → `verify:gas-bundle` → `test:e2e`)                                                                                                |
@@ -312,6 +332,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 | `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุม `frontend`, `backend`, `contract` และ `tooling` ผ่าน `vitest.config.ts`                                                                                 |
 | `npm --workspace=frontend run test -- path/to/file.test.ts` | รันเทสทีละไฟล์ฝั่ง `frontend` (เปลี่ยนเป็น `--workspace=backend` สำหรับฝั่ง backend)                                                                                                           |
 | `npm run skills:sync`                                       | ซิงก์ canonical skills ทั้ง 15 ตัวลง `.agents/skills/` แบบ agent-neutral ตาม commit/version ที่ตรึงไว้ใน `skills-lock.json` (รองรับ `-- --verify` และ `-- --dry-run`, ไม่ใช้ floating `latest`) |
+| `npm run agents:setup`                                      | ตั้งค่า local multi-agent adapter แบบ offline, idempotent, opt-in ต่อ agent (`-- --agent claude\|codex\|antigravity\|all`, รองรับ `-- --dry-run`) และไม่ทับโฟลเดอร์/คอนฟิกเดิมของผู้ใช้          |
+| `npm run agents:check`                                      | ตรวจ multi-agent drift แบบ offline ใน `npm run check` (instruction SSOT, `.gitignore`, pinned skills/frontmatter/hash, MCP parity, zero secrets, `.claude/skills` link หากมี)        |
 
 ### 2. Backend & `@google/clasp` v3 Scripts (`backend/package.json`)
 
@@ -340,5 +362,6 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 - `.env*` (ยกเว้น `.env.example`)
 - `.clasp.json` และ `.clasprc.json` (track เฉพาะ `backend/.clasp.json.example`)
 - `.scratch/` (ที่พัก Specs และ Tickets แบบ local)
+- `.claude/skills` (local skills adapter สำหรับ Claude Code ที่สร้างจาก `npm run agents:setup -- --agent claude`)
 - `.playwright-cli/`, `playwright-report/`, `test-results/` (snapshots, reports และ artifacts จาก Playwright)
 - `node_modules/`, `dist/`, `build/`

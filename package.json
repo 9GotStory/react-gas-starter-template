@@ -22,7 +22,7 @@
     "typecheck": "npm --workspace=frontend run typecheck && npm --workspace=backend run typecheck && tsc -p tests/contract/tsconfig.json --noEmit && tsc -p tests/e2e/tsconfig.json --noEmit",
     "lint": "npm --workspace=frontend run lint && npm --workspace=backend run lint && eslint --config tests/contract/eslint.config.mjs tests/contract && eslint --config tests/e2e/eslint.config.mjs tests/e2e tests/fixtures playwright.config.ts && eslint --config scripts/eslint.config.mjs scripts",
     "format:check": "prettier --check .",
-    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run agents:check",
     "verify:gas-bundle": "npm --workspace=backend run verify:gas-bundle",
     "verify": "npm run check && npm run build && npm run verify:gas-bundle && npm run test:e2e",
     "gas:login": "npm --workspace=backend run gas:login",
@@ -31,7 +31,9 @@
     "gas:pull": "npm --workspace=backend run gas:pull",
     "gas:open": "npm --workspace=backend run gas:open",
     "gas:deploy": "npm --workspace=backend run gas:deploy",
-    "skills:sync": "node scripts/skills-sync.mjs"
+    "skills:sync": "node scripts/skills-sync.mjs",
+    "agents:setup": "node scripts/agents-setup.mjs",
+    "agents:check": "node scripts/agents-check.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.1",

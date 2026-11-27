@@ -2,6 +2,7 @@ node_modules/
 dist/
 .scratch/
 .agents/
+.claude/skills
 playwright-report/
 test-results/
 package-lock.json
