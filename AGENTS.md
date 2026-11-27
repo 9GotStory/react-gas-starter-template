@@ -13,15 +13,17 @@
 
 Run these exact commands from the repository root (do not guess scripts). Runtime is pinned to **Node.js 26 Active LTS** (`.nvmrc`) and **npm 11** (`engines` / `packageManager`):
 
-- **Base Template Verification (Offline):** `npm ci`, `npm run check`, `npm run build`, and `npm run verify:gas-bundle` (verifies `backend/dist/` contains strictly `Code.js` and `appsscript.json`, exposes top-level `doGet`/`doPost` globals, and stays within the bundle size budget).
-- **Full check:** `npm run check` (runs `typecheck`, `lint`, `format:check`, and `test`)
+- **Base Template Verification (Offline):** `npm ci` and `npm run verify` (chains `npm run check`, `npm run build`, `npm run verify:gas-bundle`, and `npm run test:e2e`). First-time browser setup uses `npx playwright install chromium`.
+- **Full check (fast loop):** `npm run check` (runs `typecheck`, `lint`, `format:check`, and `test`)
 - **Test (single):** `npm --workspace=frontend run test -- path/to/file.test.ts` (or `--workspace=backend`, or `npm run test:contract` for cross-workspace API contract tests)
-- **Test (full):** `npm run test` (runs frontend, backend, and cross-workspace API contract tests)
+- **Test (full Vitest):** `npm run test` (runs frontend, backend, and cross-workspace API contract tests)
+- **Automated E2E & Accessibility:** `npm run test:e2e` (runs `@playwright/test` + `@axe-core/playwright` WCAG 2.2 AA scans offline against the built production frontend bundle via `vite preview` using `page.route()` and shared plain fixtures in `tests/fixtures/items.ts`; note that Axe alone is a minimum gate and does not equal full WCAG 2.2 AA compliance)
+- **Offline Dev Mock API:** `npm run dev` mounts a strictly dev-only Vite middleware (`frontend/dev/mockGasMiddleware.ts`, `apply: 'serve'`, never bundled into `frontend/dist/`) at `/api/gas` backed by `tests/fixtures/items.ts` when `VITE_GAS_API_URL` is unset or `/api/gas`.
 - **Typecheck:** `npm run typecheck`
 - **Lint & Format:** `npm run lint && npm run format:check`
 - **Production Build:** `npm run build` (builds both `frontend/dist/` and `backend/dist/`)
 - **GAS Bundle Verification:** `npm run verify:gas-bundle` (offline check of `backend/dist/` file list, global `doGet`/`doPost` entrypoints, valid manifest JSON, and size budget)
-- **Browser QA:** Use **Playwright CLI** (`npx playwright-cli`, preferred for token efficiency) or **Playwright MCP** (`.mcp.json`) — choose one per session (never both). In this Base Template, use a **Mock API** to verify UI, responsive layouts, and interactions without live GAS. Verify live GAS CORS, `script.googleusercontent.com` redirect, and JSON response reading in a real browser **only** in projects connected to a real GAS deployment.
+- **Interactive Browser QA:** Separate from automated `npm run test:e2e`, use **Playwright CLI** (`npx playwright-cli`, preferred for token efficiency) or **Playwright MCP** (`.mcp.json`) — choose one per session (never both). In this Base Template, use the offline dev mock API (`npm run dev`) to verify UI, responsive layouts, and manual WCAG 2.2 AA keyboard/focus interactions without live GAS. Verify live GAS CORS, `script.googleusercontent.com` redirect, and JSON response reading in a real browser **only** in projects connected to a real GAS deployment.
 
 ## Source of Truth (Read on Demand)
 

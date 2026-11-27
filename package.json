@@ -16,12 +16,14 @@
     "build": "npm --workspace=frontend run build && npm --workspace=backend run build",
     "test": "npm --workspace=frontend run test && npm --workspace=backend run test && npm run test:contract",
     "test:contract": "vitest run --project contract",
+    "test:e2e": "playwright test",
     "test:watch": "vitest",
-    "typecheck": "npm --workspace=frontend run typecheck && npm --workspace=backend run typecheck && tsc -p tests/contract/tsconfig.json --noEmit",
-    "lint": "npm --workspace=frontend run lint && npm --workspace=backend run lint && eslint --config tests/contract/eslint.config.mjs tests/contract",
+    "typecheck": "npm --workspace=frontend run typecheck && npm --workspace=backend run typecheck && tsc -p tests/contract/tsconfig.json --noEmit && tsc -p tests/e2e/tsconfig.json --noEmit",
+    "lint": "npm --workspace=frontend run lint && npm --workspace=backend run lint && eslint --config tests/contract/eslint.config.mjs tests/contract && eslint --config tests/e2e/eslint.config.mjs tests/e2e tests/fixtures playwright.config.ts",
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
     "verify:gas-bundle": "npm --workspace=backend run verify:gas-bundle",
+    "verify": "npm run check && npm run build && npm run verify:gas-bundle && npm run test:e2e",
     "gas:login": "npm --workspace=backend run gas:login",
     "gas:status": "npm --workspace=backend run gas:status",
     "gas:push": "npm --workspace=backend run gas:push",
@@ -34,7 +36,9 @@
     "skills:sync": "npm run skills:sync:matt && npm run skills:sync:ui && npm run skills:sync:playwright"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.1",
     "@playwright/cli": "^0.1.25",
+    "@playwright/test": "^1.65.1",
     "prettier": "^3.10.1",
     "vitest": "^5.1.1"
   }

@@ -2,7 +2,7 @@
 
 GitHub Base Template Repository แบบ Monorepo สำหรับสร้างเว็บแอปด้วย **React (Vite + TypeScript + Tailwind CSS + TanStack Query)** คู่กับ **Google Apps Script (GAS) Web App + Google Sheets** ที่เขียนด้วย TypeScript, bundle ด้วย **esbuild** และ deploy ผ่าน **`@google/clasp` v3** พร้อมวางระบบเอกสารและสกิลสำหรับ AI-Assisted Development ครบชุด
 
-> **หมายเหตุ (Base Template Scope):** Repository นี้เป็น **Base Template ที่ยังไม่ได้เชื่อมต่อ Google Apps Script หรือ Google Sheets จริง** การตรวจสอบตัว Template ให้ทำแบบ **Offline Verification เท่านั้น** (`npm ci`, `npm run check`, `npm run build`, `npm run verify:gas-bundle` และใช้ Playwright กับ Mock API) — AI Agent ต้องไม่สร้าง GAS Project, ผูก Google Sheets, รัน `clasp push`/`deploy` หรือร้องขอ Credentials เพื่อทดสอบ Base Template นี้
+> **หมายเหตุ (Base Template Scope):** Repository นี้เป็น **Base Template ที่ยังไม่ได้เชื่อมต่อ Google Apps Script หรือ Google Sheets จริง** การตรวจสอบตัว Template ให้ทำแบบ **Offline Verification เท่านั้น** (`npm ci` และ `npm run verify` ซึ่งรัน `check`, `build`, `verify:gas-bundle` และ Playwright E2E พร้อม dev-only Mock API) — AI Agent ต้องไม่สร้าง GAS Project, ผูก Google Sheets, รัน `clasp push`/`deploy` หรือร้องขอ Credentials เพื่อทดสอบ Base Template นี้
 
 ---
 
@@ -15,6 +15,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
   - **React 19 + Vite 7 + TypeScript + Tailwind CSS v4**
   - **TanStack Query v5** ตั้งค่า default ให้เหมาะกับโควตาและ cold-start ของ GAS (`refetchOnWindowFocus: false`, `staleTime: 5 * 60 * 1000`, retry queries ได้สูงสุด 1 ครั้งเฉพาะ transient errors: `TIMEOUT`, `NETWORK_ERROR`, `LOCK_TIMEOUT`, HTTP `429`/`5xx`, ไม่ retry `ABORTED` หรือ validation/config/contract errors และตั้ง `mutations.retry: 0`) ใน `frontend/src/lib/queryClient.ts`
   - **Single GAS API Client** (`frontend/src/api/gasClient.ts`) รองรับทั้ง absolute GAS URL และ relative path (`/api/gas`), บังคับ request timeout (ค่าเริ่มต้น `20_000` ms) ด้วย `AbortController` พร้อมส่งต่อ `AbortSignal` และแยก `TIMEOUT` ออกจาก `ABORTED`, แปลง HTTP 200 HTML/non-JSON เป็น typed `NON_JSON_RESPONSE` error, ส่ง `POST` แบบ simple request (`Content-Type: text/plain;charset=utf-8` หรือ `application/x-www-form-urlencoded`) โดยไม่ใส่ Custom Headers เกินจำเป็นเพื่อเลี่ยง CORS preflight ของ GAS และ validate response JSON จาก `unknown` ทุกครั้ง
+  - **Starter `Item` UI (WCAG 2.2 AA Baseline)** (`frontend/src/App.tsx`) มี explicit `<label>` สำหรับอินพุต `Item code` / `Item name`, visible focus indicators, live regions (`role="status"` / `aria-busy` และ `role="alert"`), validation error feedback และปิดปุ่มขณะส่งข้อมูลเพื่อกัน double-submit
+  - **Dev-Only Offline Mock API** (`frontend/dev/mockGasMiddleware.ts`, `apply: 'serve'`) เปิด endpoint `/api/gas` จาก plain `Item` fixtures ที่ใช้ร่วมกับ Playwright E2E (`tests/fixtures/items.ts`) โดยไม่ใช้ mock framework และไม่ถูก bundle ลง `frontend/dist/` เมื่อรัน `npm run dev` โดยยังไม่ตั้งค่า `VITE_GAS_API_URL` จะทำงาน offline ได้ทันที
   - **นโยบาย Routing:** ยังไม่ติดตั้ง `react-router` ล่วงหน้าเพื่อให้ Single-Page App เบาที่สุด หาก Spec ต้องการหลายหน้า/หลาย URL ให้ติดตั้งและใช้ `react-router` เป็นมาตรฐาน
 - **Backend (`backend/`):**
   - **TypeScript + `@types/google-apps-script`** แยก entrypoint (`backend/src/main.ts` รองรับ `doGet`/`doPost` ตามความเหมาะสม) และ pure logic (`backend/src/sheetsLogic.ts`) ออกจากกันชัดเจน ไม่ต้องเขียน logic ซ้ำสองที่
@@ -24,8 +26,9 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
   - **Deploy ด้วย `@google/clasp` v3** (ติดตั้งเป็น devDependency ใน `backend/` พร้อมใช้งานทันที) ชี้ `srcDir: "dist"` / `rootDir: "dist"` ทำให้ `clasp` track เฉพาะไฟล์ที่ build แล้ว ไม่หลุดไฟล์เทสหรือ config ขึ้น GAS
 - **Quality & Verification:**
   - **Vitest** (ครอบคลุม `frontend/` แบบ `jsdom` + Testing Library, `backend/` แบบ `node` offline และ Cross-Workspace API Contract Tests ใน `tests/contract/api.contract.test.ts` ที่เชื่อม `gasClient` เข้ากับ `doGet`/`doPost` โดยตรงในหน่วยความจำตาม ADR-0001) + **ESLint** + **Prettier** + **TypeScript (`tsc --noEmit`)** + **Vite build + esbuild GAS bundle**
-  - **Browser QA ด้วย Playwright CLI / MCP:** ใช้ `npx playwright-cli` (ประหยัด token) หรือ **Playwright MCP** ใน `.mcp.json` เลือกใช้อย่างใดอย่างหนึ่ง (ไม่ต้องใช้พร้อมกัน และยังไม่เพิ่ม Playwright E2E test suite ล่วงหน้า)
-    - **ใน Base Template (Offline):** ใช้ **Mock API** ทดสอบ UI, Responsive และ Interactions โดยไม่ต้องเชื่อมต่อ GAS จริง
+  - **Automated Playwright E2E & Accessibility (`npm run test:e2e`, Core — ADR-0004):** รัน `@playwright/test` + `@axe-core/playwright` แบบ offline กับ production bundle จริง (`frontend/dist/`) ผ่าน `vite preview` โดย intercept เฉพาะ HTTP boundary (`page.route()`) ด้วย shared plain `Item` fixtures (`tests/fixtures/items.ts`) เพื่อทดสอบ list/create, การคงเลขศูนย์นำหน้า (`00123`), client/server validation, HTTP 200 HTML (`NON_JSON_RESPONSE`), responsive desktop/mobile, การไม่หลุดของ dev mock middleware ใน production bundle และการสแกน WCAG 2.2 AA ด้วย Axe _(หมายเหตุ: ผลผ่านจาก Axe เป็น minimum automated gate เท่านั้น ไม่เท่ากับการผ่าน WCAG 2.2 AA ครบถ้วน ยังต้องตรวจ keyboard/focus/semantic ด้วยมือเพิ่มเติม)_
+  - **Interactive Browser QA ด้วย Playwright CLI / MCP (แยกจาก Automated E2E):** ใช้ `npx playwright-cli` (ประหยัด token) หรือ **Playwright MCP** ใน `.mcp.json` เลือกใช้อย่างใดอย่างหนึ่งต่อ session (ไม่ใช้พร้อมกัน)
+    - **ใน Base Template (Offline):** ใช้ Dev-Only Mock API (`npm run dev`) ทดสอบ UI, Responsive และ manual WCAG 2.2 AA keyboard/focus interactions โดยไม่ต้องเชื่อมต่อ GAS จริง
     - **ในโปรเจกต์ที่เชื่อมต่อ GAS จริงแล้วเท่านั้น:** ทดสอบ CORS, HTTP `302` redirect ไป `script.googleusercontent.com` และการอ่าน JSON Response ผ่าน Browser จริงก่อนสรุปว่าใช้งานได้
   - การันตีพฤติกรรม GAS runtime ตามเอกสารทางการ: บังคับอ่าน `SPREADSHEET_ID` จาก Script Properties โดยไม่ fallback ไป `getActiveSpreadsheet()` (`CONFIG_MISSING`, ADR-0002), `doGet` เป็น read-only ล้วน (คืน `[]` เมื่อยังไม่มีชีต/ข้อมูล และคืน `SCHEMA_ERROR` เมื่อ header ผิด), ใช้ Batch Read/Write และล็อกการสร้างชีต/เขียนพร้อมกันใน `doPost` ด้วย `LockService.getScriptLock().tryLock()` + `SpreadsheetApp.flush()` + ปลดล็อกใน `finally` เสมอ, คงทุกคอลัมน์ข้อความของ `Item` (`id`, `code`, `name`, `createdAt`) ด้วย `.setNumberFormat("@")` ก่อน `.setValues()` พร้อมกรองแถวว่างและแปลง `Date` เป็น ISO-8601 ตอนอ่าน, ตรวจชนิด string/ความยาว/ขนาด payload และกัน Formula Injection (`=`, `+`, `-`, `@`, `\t`, `\r`), บันทึก log แบบ Structured JSON ผ่าน `console` โดยไม่หลุด secrets/PII/Spreadsheet ID และคืน canonical error envelope (`CONFIG_MISSING`, `SCHEMA_ERROR`, `INVALID_JSON`, `INVALID_ACTION`, `VALIDATION_ERROR`, `LOCK_TIMEOUT`, `INTERNAL_ERROR` แบบ generic message) เพราะ `ContentService` ตั้ง HTTP status code หรือ custom response headers เองไม่ได้ และคำนึงถึง [GAS Quotas](https://developers.google.com/apps-script/guides/services/quotas) (6 นาที/execution, 30 concurrent/user, 1,000/script) โดยไม่สร้างระบบจัดการโควตาซับซ้อนล่วงหน้า
 - **AI Tooling & Docs:**
@@ -47,8 +50,15 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 ├── .gitignore                       # ดัก .env*, .clasp.json, .clasprc.json, .scratch/, .playwright-cli/, dist/
 ├── .nvmrc                           # ตรึง Node.js 26 Active LTS
 ├── package.json                     # Root workspaces, engines/packageManager (Node 26 / npm 11) & scripts
+├── playwright.config.ts             # Playwright E2E config รันกับ production bundle (vite preview)
 ├── vitest.config.ts                 # Root Vitest projects config (frontend + backend + contract)
 ├── tests/
+│   ├── fixtures/
+│   │   └── items.ts                 # Shared plain Item fixtures + pure mock controller (dev mock & E2E)
+│   ├── e2e/
+│   │   ├── app.spec.ts              # Automated Playwright E2E, responsive & WCAG 2.2 AA Axe suite
+│   │   ├── eslint.config.mjs        # ESLint config สำหรับชุด E2E และ shared fixtures
+│   │   └── tsconfig.json            # TypeScript strict config สำหรับชุด E2E และ shared fixtures
 │   └── contract/
 │       ├── api.contract.test.ts     # Cross-workspace API contract tests (gasClient <-> doGet/doPost)
 │       ├── eslint.config.mjs        # ESLint config สำหรับชุด contract tests
@@ -59,9 +69,12 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 ├── .agents/
 │   └── skills/                      # สกิล Matt Pocock Core 12 ตัว + UI/UX Pro Max + Playwright CLI
 ├── frontend/
-│   ├── .env.example                 # ตัวอย่าง VITE_GAS_API_URL
+│   ├── .env.example                 # ตัวอย่าง VITE_GAS_API_URL (ไม่ตั้งค่าตอน dev จะใช้ offline mock API)
+│   ├── dev/
+│   │   ├── mockGasMiddleware.ts     # Dev-only Vite middleware (apply: 'serve') ใช้ shared fixtures
+│   │   └── mockGasMiddleware.test.ts # Unit tests ยืนยันพฤติกรรม dev-only mock middleware
 │   ├── package.json                 # Dependencies & scripts ฝั่ง frontend
-│   ├── vite.config.ts               # Vite + React + Tailwind v4 + Vitest (jsdom)
+│   ├── vite.config.ts               # Vite + React + Tailwind v4 + dev-only mock plugin + Vitest (jsdom)
 │   └── src/
 │       ├── api/
 │       │   ├── gasClient.ts         # API client จุดเดียว (20s timeout, ABORTED/TIMEOUT, relative URL, NON_JSON_RESPONSE)
@@ -71,8 +84,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │       ├── lib/
 │       │   ├── queryClient.ts       # QueryClient ค่าเริ่มต้น (selective query retry + mutations.retry = 0)
 │       │   └── queryClient.test.ts  # Tests นโยบาย selective retry และ zero mutation retry
-│       ├── App.tsx                  # หน้าตัวอย่างจัดการ loading / empty / error / data
-│       └── App.test.tsx             # Component tests ด้วย Testing Library
+│       ├── App.tsx                  # หน้าตัวอย่าง WCAG 2.2 AA baseline (loading / empty / error / data / validation)
+│       └── App.test.tsx             # Component tests ด้วย Testing Library (GET/POST/validation/accessible queries)
 └── backend/
     ├── .clasp.json.example          # ตัวอย่าง clasp config (srcDir: "dist")
     ├── appsscript.json              # Apps Script V8 Web App manifest (fail-closed: MYSELF + spreadsheets scope)
@@ -108,17 +121,21 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
    ```bash
    npm install
    ```
-3. คัดลอกไฟล์ตัวอย่างสำหรับ config ฝั่ง frontend (ถูกดักใน `.gitignore` แล้ว — ส่วน `backend/.clasp.json` ให้จัดการในขั้นที่ 2):
+3. _(พัฒนาแบบ Offline ทันที)_ รัน `npm run dev` ได้เลยโดยยังไม่ต้องสร้าง `frontend/.env` ระบบจะเปิด dev-only mock API ที่ `/api/gas` อัตโนมัติ หรือเมื่อพร้อมเชื่อม GAS จริงให้คัดลอกไฟล์ตัวอย่าง (ถูกดักใน `.gitignore` แล้ว — ส่วน `backend/.clasp.json` ให้จัดการในขั้นที่ 2):
    ```bash
    cp frontend/.env.example frontend/.env
    ```
-4. _(ทางเลือก)_ อัปเดตสกิลใน `.agents/skills/` ให้เป็นเวอร์ชันล่าสุด:
+4. ติดตั้ง Chromium สำหรับชุดทดสอบ Playwright E2E ครั้งแรกในเครื่อง:
+   ```bash
+   npx playwright install chromium
+   ```
+5. _(ทางเลือก)_ อัปเดตสกิลใน `.agents/skills/` ให้เป็นเวอร์ชันล่าสุด:
    ```bash
    npm run skills:sync
    ```
-5. ตรวจสอบว่าทุกอย่างผ่านเขียวแบบ Offline (`npm ci` สำหรับ clean install, `npm run check`, `npm run build` และตรวจ GAS bundle ด้วย `npm run verify:gas-bundle`):
+6. ตรวจสอบทุกอย่างครบจบในคำสั่งเดียวแบบ Offline (`check` + `build` + `verify:gas-bundle` + Playwright E2E & Axe):
    ```bash
-   npm run check && npm run build && npm run verify:gas-bundle
+   npm run verify
    ```
 
 ### ขั้นที่ 2: ผูก Google Apps Script ด้วย `@google/clasp` v3 _(เฉพาะโปรเจกต์จริงที่สร้างจาก Template แล้วเท่านั้น)_
@@ -270,23 +287,25 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 ### 1. Root Scripts (`package.json`)
 
-| คำสั่ง                                                        | คำสั่งจริง / คำอธิบาย                                                                                            |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `npm run dev`                                               | เปิด Vite dev server ของ `frontend/` (`npm --workspace=frontend run dev`)                                     |
-| `npm run build`                                             | Build ทั้ง `frontend/dist/` (Vite) และ `backend/dist/` (`esbuild` สำหรับ GAS)                                   |
-| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง `frontend`, `backend` และ `contract`        |
-| `npm run verify:gas-bundle`                                 | ตรวจ `backend/dist/` แบบ offline (เฉพาะ `Code.js` + `appsscript.json`, global `doGet`/`doPost`, size budget) |
-| `npm run typecheck`                                         | รัน `tsc --noEmit` ทั้ง `frontend`, `backend` และ `tests/contract`                                              |
-| `npm run lint`                                              | รัน `eslint` ทั้ง `frontend`, `backend` และ `tests/contract`                                                    |
-| `npm run format:check`                                      | ตรวจฟอร์แมตทั้ง repo ด้วย `prettier --check .`                                                                   |
-| `npm run test`                                              | รัน Vitest tests แบบ offline ครบทั้ง `frontend`, `backend` และ `contract`                                       |
-| `npm run test:contract`                                     | รันเฉพาะ cross-workspace API contract tests (`tests/contract/api.contract.test.ts`)                           |
-| `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุม `frontend`, `backend` และ `contract` ผ่าน `vitest.config.ts`                     |
-| `npm --workspace=frontend run test -- path/to/file.test.ts` | รันเทสทีละไฟล์ฝั่ง `frontend` (เปลี่ยนเป็น `--workspace=backend` สำหรับฝั่ง backend)                                    |
-| `npm run skills:sync:matt`                                  | ติดตั้ง/ซิงก์ Matt Pocock Core 12 สกิลลง `.agents/skills/`                                                         |
-| `npm run skills:sync:ui`                                    | ติดตั้ง/ซิงก์ UI/UX Pro Max สกิลลง `.agents/skills/`                                                               |
-| `npm run skills:sync:playwright`                            | ติดตั้ง/ซิงก์ Playwright CLI Skill ลง `.agents/skills/playwright-cli/`                                            |
-| `npm run skills:sync`                                       | รัน `skills:sync:matt`, `skills:sync:ui` และ `skills:sync:playwright` ต่อเนื่องกัน                                |
+| คำสั่ง                                                        | คำสั่งจริง / คำอธิบาย                                                                                                |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                               | เปิด Vite dev server ของ `frontend/` พร้อม dev-only offline mock API ที่ `/api/gas` เมื่อยังไม่ตั้ง `VITE_GAS_API_URL`     |
+| `npm run build`                                             | Build ทั้ง `frontend/dist/` (Vite, ไม่มี dev mock) และ `backend/dist/` (`esbuild` สำหรับ GAS)                         |
+| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง `frontend`, `backend`, `contract` และ `e2e`     |
+| `npm run verify:gas-bundle`                                 | ตรวจ `backend/dist/` แบบ offline (เฉพาะ `Code.js` + `appsscript.json`, global `doGet`/`doPost`, size budget)     |
+| `npm run test:e2e`                                          | รัน Playwright E2E + responsive + `@axe-core/playwright` WCAG 2.2 AA กับ production bundle (`vite preview`)        |
+| `npm run verify`                                            | รัน offline quality gate ครบชุด (`check` → `build` → `verify:gas-bundle` → `test:e2e`)                             |
+| `npm run typecheck`                                         | รัน `tsc --noEmit` ทั้ง `frontend`, `backend`, `tests/contract` และ `tests/e2e`                                     |
+| `npm run lint`                                              | รัน `eslint` ทั้ง `frontend`, `backend`, `tests/contract`, `tests/e2e`, `tests/fixtures` และ `playwright.config.ts` |
+| `npm run format:check`                                      | ตรวจฟอร์แมตทั้ง repo ด้วย `prettier --check .`                                                                       |
+| `npm run test`                                              | รัน Vitest tests แบบ offline ครบทั้ง `frontend`, `backend` และ `contract`                                           |
+| `npm run test:contract`                                     | รันเฉพาะ cross-workspace API contract tests (`tests/contract/api.contract.test.ts`)                               |
+| `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุม `frontend`, `backend` และ `contract` ผ่าน `vitest.config.ts`                         |
+| `npm --workspace=frontend run test -- path/to/file.test.ts` | รันเทสทีละไฟล์ฝั่ง `frontend` (เปลี่ยนเป็น `--workspace=backend` สำหรับฝั่ง backend)                                        |
+| `npm run skills:sync:matt`                                  | ติดตั้ง/ซิงก์ Matt Pocock Core 12 สกิลลง `.agents/skills/`                                                             |
+| `npm run skills:sync:ui`                                    | ติดตั้ง/ซิงก์ UI/UX Pro Max สกิลลง `.agents/skills/`                                                                   |
+| `npm run skills:sync:playwright`                            | ติดตั้ง/ซิงก์ Playwright CLI Skill ลง `.agents/skills/playwright-cli/`                                                |
+| `npm run skills:sync`                                       | รัน `skills:sync:matt`, `skills:sync:ui` และ `skills:sync:playwright` ต่อเนื่องกัน                                    |
 
 ### 2. Backend & `@google/clasp` v3 Scripts (`backend/package.json`)
 
@@ -315,5 +334,5 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 - `.env*` (ยกเว้น `.env.example`)
 - `.clasp.json` และ `.clasprc.json` (track เฉพาะ `backend/.clasp.json.example`)
 - `.scratch/` (ที่พัก Specs และ Tickets แบบ local)
-- `.playwright-cli/` (snapshots และ artifacts จากการทำ Browser QA)
+- `.playwright-cli/`, `playwright-report/`, `test-results/` (snapshots, reports และ artifacts จาก Playwright)
 - `node_modules/`, `dist/`, `build/`

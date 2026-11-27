@@ -16,8 +16,10 @@ build/
 # Local scratchpad, specs, and tickets
 .scratch/
 
-# Playwright CLI snapshots & artifacts
+# Playwright CLI snapshots, reports & artifacts
 .playwright-cli/
+playwright-report/
+test-results/
 
 # Editor & OS
 .DS_Store
