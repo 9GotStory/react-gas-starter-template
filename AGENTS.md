@@ -49,3 +49,17 @@ Do NOT read all docs upfront. Load only when relevant to the current task:
 - Do not manually edit generated or dependency directories (`node_modules/`, `dist/`, `build/`).
 - No `useEffect` + `fetch` in `frontend/` — use `gasClient` + TanStack Query hooks only; send GAS `POST` as `text/plain;charset=utf-8` or `application/x-www-form-urlencoded` without unnecessary custom headers (avoid CORS preflight).
 - Batch Sheets I/O only, preserve leading-zero strings end-to-end (`String(value ?? '')` + `.setNumberFormat("@")` before `.setValues()`), wrap writes in `LockService.getScriptLock()` (`finally` release), sanitize formula injection (`=`, `+`, `-`, `@`), and respect official GAS quotas without premature quota-management frameworks.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs are tracked in GitHub Issues via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role triage vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout (`GLOSSARY.md` and `docs/adr/` at the repo root). See `docs/agents/domain.md`.

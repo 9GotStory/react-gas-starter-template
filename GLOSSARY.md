@@ -1,16 +1,15 @@
-# Glossary
+# Starter App Domain
 
-Domain terminology and Google Sheet-to-entity mappings for this project.
-Keep this file limited to definitions and mappings (no specs or implementation code).
+Single-context domain glossary for a React + Google Apps Script application. Replace the starter `Item` sample entries below with your downstream project's domain terminology and Google Sheet mappings.
 
-## Domain Terms
+## Language
 
-| Term         | Definition                        |
-| ------------ | --------------------------------- |
-| _(Add term)_ | _(Add concise domain definition)_ |
+**Item** _(starter sample)_:
+A sample catalog record stored in the `Items` Google Sheet, identified by a generated UUID (`id`) and a leading-zero-preserving string code (`code`).
+_Avoid_: Row, entry, record
 
 ## Sheet-to-Entity Mapping
 
-| Sheet Name       | Entity Name     | Key Columns                   | Notes                                 |
-| ---------------- | --------------- | ----------------------------- | ------------------------------------- |
-| _(e.g. `Items`)_ | _(e.g. `Item`)_ | _(e.g. `id`, `code`, `name`)_ | _(e.g. `code` formatted as `@` text)_ |
+| Sheet Name                 | Entity Name | Key Columns                       | Notes                                                                          |
+| -------------------------- | ----------- | --------------------------------- | ------------------------------------------------------------------------------ |
+| `Items` _(starter sample)_ | `Item`      | `id`, `code`, `name`, `createdAt` | All text columns formatted as `@` before write; replace in downstream projects |
