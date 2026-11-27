@@ -34,7 +34,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 - **AI Tooling & Docs:**
   - `AGENTS.md` (พร้อม symlink `CLAUDE.md -> AGENTS.md`) แบบ Read on Demand, `CODING_STANDARDS.md` (แบ่ง Capabilities เป็น Core / Optional / Project-Specific), `GLOSSARY.md`, `docs/adr/0000-template.md`
   - `.mcp.json` ตั้งค่า **Context7 MCP** (`@upstash/context7-mcp`) และ **Playwright MCP** (`@playwright/mcp@latest`) ร่วมกัน
-  - `.agents/skills/` ติดตั้ง **Matt Pocock Core 12 ตัว**, **UI/UX Pro Max** (ต้องมี `python3` สำหรับ `search.py`) และ **Playwright CLI Skill** (`.agents/skills/playwright-cli/`) พร้อมใช้งาน
+  - `.agents/skills/` ติดตั้งเฉพาะชุด **Canonical Shared Skills 15 ตัว** ที่ตรึงเวอร์ชัน/commit hash ชัดเจนใน `skills-lock.json` (ไม่ auto-upgrade เป็น `latest` และไม่ผูกกับเอเจนต์ใดเอเจนต์หนึ่ง): **Matt Pocock Workflow 12 ตัว**, **UI/UX Pro Max** (ออกแบบ Design System — `python3` จำเป็น**เฉพาะ**สำหรับสคริปต์ `search.py` ของสกิลนี้เท่านั้น ไม่จำเป็นสำหรับ Application Runtime, Build หรือ CI), **Vercel `web-design-guidelines`** (ตรวจสอบคุณภาพ UI และ Accessibility แบบ offline จาก ruleset ที่แนบมา) และ **Playwright CLI Skill** (`.agents/skills/playwright-cli/` สำหรับ Interactive Browser QA) ส่วน **Anthropic `frontend-design`** และ **Impeccable** ถูกจัดอยู่ในระดับ **Optional** (ไม่ได้ติดตั้งล่วงหน้าใน Base Template) เพื่อไม่ให้บทบาทซ้ำซ้อนกัน
 
 ---
 
@@ -50,8 +50,13 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 ├── .gitignore                       # ดัก .env*, .clasp.json, .clasprc.json, .scratch/, .playwright-cli/, dist/
 ├── .nvmrc                           # ตรึง Node.js 26 Active LTS
 ├── package.json                     # Root workspaces, engines/packageManager (Node 26 / npm 11) & scripts
+├── skills-lock.json                 # Unified skills manifest/lockfile ตรึง commit/version และ hash ครบทั้ง 15 สกิล
 ├── playwright.config.ts             # Playwright E2E config รันกับ production bundle (vite preview)
-├── vitest.config.ts                 # Root Vitest projects config (frontend + backend + contract)
+├── vitest.config.ts                 # Root Vitest projects config (frontend + backend + contract + tooling)
+├── scripts/
+│   ├── eslint.config.mjs            # ESLint config สำหรับ Node.js tooling scripts
+│   ├── skills-sync.mjs              # สคริปต์ซิงก์และตรวจสกิลแบบ agent-neutral ตาม pin ใน skills-lock.json
+│   └── skills-sync.test.mjs         # Offline tests ตรวจ pin, frontmatter, hash และ dry-run/sync ของ skills-sync
 ├── tests/
 │   ├── fixtures/
 │   │   └── items.ts                 # Shared plain Item fixtures + pure mock controller (dev mock & E2E)
@@ -67,7 +72,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │   └── adr/
 │       └── 0000-template.md         # เทมเพลต ADR พร้อมเกณฑ์กรอง 3 ข้อ
 ├── .agents/
-│   └── skills/                      # สกิล Matt Pocock Core 12 ตัว + UI/UX Pro Max + Playwright CLI
+│   └── skills/                      # Canonical skills 15 ตัว: Matt Pocock 12 ตัว + UI/UX Pro Max + Vercel web-design-guidelines + Playwright CLI
 ├── frontend/
 │   ├── .env.example                 # ตัวอย่าง VITE_GAS_API_URL (ไม่ตั้งค่าตอน dev จะใช้ offline mock API)
 │   ├── dev/
@@ -129,7 +134,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
    ```bash
    npx playwright install chromium
    ```
-5. _(ทางเลือก)_ อัปเดตสกิลใน `.agents/skills/` ให้เป็นเวอร์ชันล่าสุด:
+5. _(ทางเลือก)_ ซิงก์สกิลใน `.agents/skills/` ให้ตรงกับ commit hash / version ที่ตรึงไว้ใน `skills-lock.json` (ไม่ auto-upgrade เป็น `latest` โดยอัตโนมัติ) หรือตรวจสอบความถูกต้องแบบ offline ด้วย `npm run skills:sync -- --verify`:
    ```bash
    npm run skills:sync
    ```
@@ -221,7 +226,10 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 #### ขั้นที่ 4 — `/ui-ux-pro-max` (แชท B — แยกแชทใหม่)
 
-> **หมายเหตุ:** สกิลนี้เรียกใช้ `.agents/skills/ui-ux-pro-max/scripts/search.py` ซึ่งต้องมี `python3` พร้อมใช้งานในเครื่อง (`python3 --version`)
+> **หมายเหตุ (ขอบเขต `python3` และบทบาทสกิล UI/UX):** `python3` จำเป็น**เฉพาะ**สำหรับเรียกใช้ `.agents/skills/ui-ux-pro-max/scripts/search.py` ของสกิล `ui-ux-pro-max` เท่านั้น (`python3 --version`) — **ไม่จำเป็น**สำหรับ Application Runtime, การ build หรือ CI ของโปรเจกต์
+>
+> - **Core UI/UX Skills (ติดตั้งพร้อมใช้ ไม่ทับซ้อนกัน):** `ui-ux-pro-max` ใช้สร้าง Design System (`MASTER.md` / page overrides), Vercel `web-design-guidelines` ใช้ตรวจ/audit โค้ด UI และ Accessibility กับ Web Interface Guidelines แบบ offline, และ `playwright-cli` / Playwright MCP ใช้ทำ Interactive Browser QA (เลือกอย่างใดอย่างหนึ่งต่อ session)
+> - **Optional UI/UX Skills (ไม่ได้ติดตั้งล่วงหน้าใน Base Template):** **Anthropic `frontend-design`** (งานออกแบบ visual art direction เฉพาะทาง) และ **Impeccable** (เวิร์กโฟลว์รีวิวและขัดเกลาความประณีตของ UI) ให้เพิ่มเฉพาะเมื่อโปรเจกต์ปลายทางต้องการจริงเท่านั้น
 
 ```text
 /ui-ux-pro-max
@@ -287,25 +295,23 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 ### 1. Root Scripts (`package.json`)
 
-| คำสั่ง                                                        | คำสั่งจริง / คำอธิบาย                                                                                                |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`                                               | เปิด Vite dev server ของ `frontend/` พร้อม dev-only offline mock API ที่ `/api/gas` เมื่อยังไม่ตั้ง `VITE_GAS_API_URL`     |
-| `npm run build`                                             | Build ทั้ง `frontend/dist/` (Vite, ไม่มี dev mock) และ `backend/dist/` (`esbuild` สำหรับ GAS)                         |
-| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง `frontend`, `backend`, `contract` และ `e2e`     |
-| `npm run verify:gas-bundle`                                 | ตรวจ `backend/dist/` แบบ offline (เฉพาะ `Code.js` + `appsscript.json`, global `doGet`/`doPost`, size budget)     |
-| `npm run test:e2e`                                          | รัน Playwright E2E + responsive + `@axe-core/playwright` WCAG 2.2 AA กับ production bundle (`vite preview`)        |
-| `npm run verify`                                            | รัน offline quality gate ครบชุด (`check` → `build` → `verify:gas-bundle` → `test:e2e`)                             |
-| `npm run typecheck`                                         | รัน `tsc --noEmit` ทั้ง `frontend`, `backend`, `tests/contract` และ `tests/e2e`                                     |
-| `npm run lint`                                              | รัน `eslint` ทั้ง `frontend`, `backend`, `tests/contract`, `tests/e2e`, `tests/fixtures` และ `playwright.config.ts` |
-| `npm run format:check`                                      | ตรวจฟอร์แมตทั้ง repo ด้วย `prettier --check .`                                                                       |
-| `npm run test`                                              | รัน Vitest tests แบบ offline ครบทั้ง `frontend`, `backend` และ `contract`                                           |
-| `npm run test:contract`                                     | รันเฉพาะ cross-workspace API contract tests (`tests/contract/api.contract.test.ts`)                               |
-| `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุม `frontend`, `backend` และ `contract` ผ่าน `vitest.config.ts`                         |
-| `npm --workspace=frontend run test -- path/to/file.test.ts` | รันเทสทีละไฟล์ฝั่ง `frontend` (เปลี่ยนเป็น `--workspace=backend` สำหรับฝั่ง backend)                                        |
-| `npm run skills:sync:matt`                                  | ติดตั้ง/ซิงก์ Matt Pocock Core 12 สกิลลง `.agents/skills/`                                                             |
-| `npm run skills:sync:ui`                                    | ติดตั้ง/ซิงก์ UI/UX Pro Max สกิลลง `.agents/skills/`                                                                   |
-| `npm run skills:sync:playwright`                            | ติดตั้ง/ซิงก์ Playwright CLI Skill ลง `.agents/skills/playwright-cli/`                                                |
-| `npm run skills:sync`                                       | รัน `skills:sync:matt`, `skills:sync:ui` และ `skills:sync:playwright` ต่อเนื่องกัน                                    |
+| คำสั่ง                                                        | คำสั่งจริง / คำอธิบาย                                                                                                                                                                   |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`                                               | เปิด Vite dev server ของ `frontend/` พร้อม dev-only offline mock API ที่ `/api/gas` เมื่อยังไม่ตั้ง `VITE_GAS_API_URL`                                                                        |
+| `npm run build`                                             | Build ทั้ง `frontend/dist/` (Vite, ไม่มี dev mock) และ `backend/dist/` (`esbuild` สำหรับ GAS)                                                                                            |
+| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง `frontend`, `backend`, `contract` และ `tooling`                                                                    |
+| `npm run verify:gas-bundle`                                 | ตรวจ `backend/dist/` แบบ offline (เฉพาะ `Code.js` + `appsscript.json`, global `doGet`/`doPost`, size budget)                                                                        |
+| `npm run test:e2e`                                          | รัน Playwright E2E + responsive + `@axe-core/playwright` WCAG 2.2 AA กับ production bundle (`vite preview`)                                                                           |
+| `npm run verify`                                            | รัน offline quality gate ครบชุด (`check` → `build` → `verify:gas-bundle` → `test:e2e`)                                                                                                |
+| `npm run typecheck`                                         | รัน `tsc --noEmit` ทั้ง `frontend`, `backend`, `tests/contract` และ `tests/e2e`                                                                                                        |
+| `npm run lint`                                              | รัน `eslint` ทั้ง `frontend`, `backend`, `tests/contract`, `tests/e2e`, `tests/fixtures`, `playwright.config.ts` และ `scripts`                                                         |
+| `npm run format:check`                                      | ตรวจฟอร์แมตทั้ง repo ด้วย `prettier --check .`                                                                                                                                          |
+| `npm run test`                                              | รัน Vitest tests แบบ offline ครบทั้ง `frontend`, `backend`, `contract` และ `tooling`                                                                                                   |
+| `npm run test:contract`                                     | รันเฉพาะ cross-workspace API contract tests (`tests/contract/api.contract.test.ts`)                                                                                                  |
+| `npm run test:tooling`                                      | รันเฉพาะ offline tooling tests (`scripts/**/*.test.mjs`)                                                                                                                             |
+| `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุม `frontend`, `backend`, `contract` และ `tooling` ผ่าน `vitest.config.ts`                                                                                 |
+| `npm --workspace=frontend run test -- path/to/file.test.ts` | รันเทสทีละไฟล์ฝั่ง `frontend` (เปลี่ยนเป็น `--workspace=backend` สำหรับฝั่ง backend)                                                                                                           |
+| `npm run skills:sync`                                       | ซิงก์ canonical skills ทั้ง 15 ตัวลง `.agents/skills/` แบบ agent-neutral ตาม commit/version ที่ตรึงไว้ใน `skills-lock.json` (รองรับ `-- --verify` และ `-- --dry-run`, ไม่ใช้ floating `latest`) |
 
 ### 2. Backend & `@google/clasp` v3 Scripts (`backend/package.json`)
 

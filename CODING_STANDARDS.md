@@ -7,8 +7,8 @@
 
 Adopt capabilities pragmatically — keep the base template minimal and add optional packages only when required by an approved spec.
 
-- **Core (Required):** TypeScript Strict, ESLint, Prettier, Vitest, Playwright E2E (`@playwright/test` + `@axe-core/playwright`), Playwright CLI/MCP (Interactive Browser QA), and TanStack Query.
-- **Optional (On Demand — add only when required by a real spec):** Zod / Advanced Validation, Idempotency, Schema Management, React Router, shadcn/ui, Lucide, React Hook Form, TanStack Table, Pagination / Batch Processing, and Retry / Backoff.
+- **Core (Required):** TypeScript Strict, ESLint, Prettier, Vitest, Playwright E2E (`@playwright/test` + `@axe-core/playwright`), TanStack Query, and Core AI/UX Tooling (`.agents/skills/` pinned via `skills-lock.json`: 12 Matt Pocock workflow skills, `ui-ux-pro-max` for design systems with `python3` required solely for its local `search.py` script and never for application runtime or CI, Vercel `web-design-guidelines` for UI/accessibility code compliance audits, `playwright-cli` / Playwright MCP for interactive Browser QA choosing one per session, and Context7 MCP for library docs).
+- **Optional (On Demand — add only when required by a real spec):** Zod / Advanced Validation, Idempotency, Schema Management, React Router, shadcn/ui, Lucide, React Hook Form, TanStack Table, Pagination / Batch Processing, Retry / Backoff, and Optional UI/UX skills not pre-installed in the Base Template (**Anthropic `frontend-design`** for bespoke visual art direction and **Impeccable** for design-critique/visual polish workflows, distinct from Core `ui-ux-pro-max` design-system generation and Vercel `web-design-guidelines` compliance auditing).
 - **Project-Specific:** Authentication / Authorization and domain-specific capabilities driven by business requirements.
 
 ## 1. Monorepo & API Boundaries (Hard Violations)

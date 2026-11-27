@@ -12,6 +12,13 @@ export default defineConfig({
           include: ['tests/contract/**/*.test.ts'],
         },
       },
+      {
+        test: {
+          name: 'tooling',
+          environment: 'node',
+          include: ['scripts/**/*.test.mjs'],
+        },
+      },
     ],
   },
 });

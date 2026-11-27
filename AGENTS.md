@@ -7,6 +7,8 @@
 - **Key Directories:**
   - `frontend/` — React + Vite + TypeScript + Tailwind CSS + TanStack Query application
   - `backend/` — TypeScript GAS Web App (`src/main.ts`, pure logic in `src/`, built to `dist/` and deployed via `@google/clasp`)
+  - `.agents/skills/` — Canonical shared skills (15 skills pinned via `skills-lock.json`: 12 Matt Pocock workflow skills, `ui-ux-pro-max`, Vercel `web-design-guidelines`, and `playwright-cli`)
+  - `scripts/` — Offline verification and pinned tooling scripts (`skills-sync.mjs`)
   - `.scratch/` — Local workspace for specs and tickets (`/to-spec`, `/to-tickets`, gitignored)
 
 ## Verification Commands
@@ -15,8 +17,9 @@ Run these exact commands from the repository root (do not guess scripts). Runtim
 
 - **Base Template Verification (Offline):** `npm ci` and `npm run verify` (chains `npm run check`, `npm run build`, `npm run verify:gas-bundle`, and `npm run test:e2e`). First-time browser setup uses `npx playwright install chromium`.
 - **Full check (fast loop):** `npm run check` (runs `typecheck`, `lint`, `format:check`, and `test`)
-- **Test (single):** `npm --workspace=frontend run test -- path/to/file.test.ts` (or `--workspace=backend`, or `npm run test:contract` for cross-workspace API contract tests)
-- **Test (full Vitest):** `npm run test` (runs frontend, backend, and cross-workspace API contract tests)
+- **Test (single):** `npm --workspace=frontend run test -- path/to/file.test.ts` (or `--workspace=backend`, `npm run test:contract` for cross-workspace API contract tests, or `npm run test:tooling` for root tooling tests)
+- **Test (full Vitest):** `npm run test` (runs frontend, backend, cross-workspace API contract, and tooling tests)
+- **Skills Pinning & Sync:** `npm run skills:sync` reproduces pinned canonical skills into `.agents/skills/` using agent-neutral targets from `skills-lock.json` without floating `latest` auto-upgrades (pass `-- --verify` for offline manifest/frontmatter/hash verification or `-- --dry-run` to preview the sync plan).
 - **Automated E2E & Accessibility:** `npm run test:e2e` (runs `@playwright/test` + `@axe-core/playwright` WCAG 2.2 AA scans offline against the built production frontend bundle via `vite preview` using `page.route()` and shared plain fixtures in `tests/fixtures/items.ts`; note that Axe alone is a minimum gate and does not equal full WCAG 2.2 AA compliance)
 - **Offline Dev Mock API:** `npm run dev` mounts a strictly dev-only Vite middleware (`frontend/dev/mockGasMiddleware.ts`, `apply: 'serve'`, never bundled into `frontend/dist/`) at `/api/gas` backed by `tests/fixtures/items.ts` when `VITE_GAS_API_URL` is unset or `/api/gas`.
 - **Typecheck:** `npm run typecheck`
@@ -33,6 +36,9 @@ Do NOT read all docs upfront. Load only when relevant to the current task:
 - `GLOSSARY.md` — Read before `/grill-with-docs`, domain modeling, or writing specs to keep Sheet/UI terminology aligned.
 - `docs/adr/` — Check Architecture Decision Records (`0000-template.md`) before changing API contracts, Sheet schemas, or structural patterns.
 - `design-system/` — Read `design-system/<project>/MASTER.md` and relevant `design-system/<project>/pages/` files (generated via `/ui-ux-pro-max`) before designing or building UI pages.
+- **Core vs. Optional UI/UX Skills (Non-Overlapping Roles):**
+  - Core (pre-installed in `.agents/skills/`): `ui-ux-pro-max` generates design systems (`python3` is required **solely** for `ui-ux-pro-max/scripts/search.py` — never for application runtime, builds, or CI); Vercel `web-design-guidelines` audits UI code and accessibility against bundled offline rules; `playwright-cli` / Playwright MCP handles interactive Browser QA (choose one per session).
+  - Optional (not pre-installed in Base Template): **Anthropic `frontend-design`** (bespoke visual art direction) and **Impeccable** (visual polish/critique workflows) may be added on demand in downstream projects without overlapping Core skills.
 - `.scratch/` — Check active specs and tickets before starting `/implement`.
 - **Context7 MCP:** Use Context7 (`resolve-library-id` -> `query-docs`) to fetch up-to-date docs for libraries/frameworks (React, TanStack Query, React Router, Tailwind CSS, Vite, Vitest, `@google/clasp`) instead of guessing APIs.
 

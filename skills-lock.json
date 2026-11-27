@@ -1,89 +1,128 @@
 {
-  "version": 2,
+  "version": 3,
+  "targetDir": ".agents/skills",
   "skills": {
     "code-review": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/code-review",
       "skillPath": "skills/engineering/code-review/SKILL.md",
-      "computedHash": "ce86b40a3d1648a0018b712f0c70704e6c2316b2a9b9e915ab116916a31273dc"
+      "computedHash": "03503c0416f951e0ad88a8e69e41176a73abe96bcf671d94d877fb08305c4363"
     },
     "codebase-design": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/codebase-design",
       "skillPath": "skills/engineering/codebase-design/SKILL.md",
-      "computedHash": "d40f025dc1b0f2020663260f38f2bcb8d6ed3523afb11e5fda624b01238677e8"
+      "computedHash": "35bfe62d56c0ae786a01540ca492232d588c119c3e2a19bcd2d49627b162c07c"
     },
     "diagnosing-bugs": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/diagnosing-bugs",
       "skillPath": "skills/engineering/diagnosing-bugs/SKILL.md",
-      "computedHash": "87c78ae966e591f9ceb177789cc5cc9de69277cd26679ffd36ca5300f430d513"
+      "computedHash": "bccb1855753ec4d07a1c0df85476a383b5a89d33d7726e9bb5d8014121307874"
     },
     "domain-modeling": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/domain-modeling",
       "skillPath": "skills/engineering/domain-modeling/SKILL.md",
-      "computedHash": "b78689833404148c769077355e12dbe5ad996a158a1e21e58ddf169e439d9d8c"
+      "computedHash": "a94465b3818001677bed9e51205fcbea48b35b1938215ab2f42459029e805f51"
     },
     "grill-me": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/productivity/grill-me",
       "skillPath": "skills/productivity/grill-me/SKILL.md",
-      "computedHash": "ab1acb9fbd9eaee03da254abb8a8de228d1e7a07475fe959da4a5eefa34ea4b9"
+      "computedHash": "5a13e157f85835632b132390a162d234822658b6a544f31cc2578280062bd044"
     },
     "grill-with-docs": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/grill-with-docs",
       "skillPath": "skills/engineering/grill-with-docs/SKILL.md",
-      "computedHash": "02e258f41d210f9b2e7cce9faf62b3c59e8fcebe5d2736369c3cd07d471324f8"
+      "computedHash": "6b1292031c4f38a11309b9dad9be1141c1921c6edf86d1ae6da8b048fa71a349"
     },
     "grilling": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/productivity/grilling",
       "skillPath": "skills/productivity/grilling/SKILL.md",
-      "computedHash": "485451958784497cd4c4dbea13cb5bbb579da58fac0d0e45f3bcb310fab68ac7"
+      "computedHash": "f51b8d5b32e80943ca65882933d5adf8bc85135ed4b3ff76d33a8d8d9f331b87"
     },
     "implement": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/implement",
       "skillPath": "skills/engineering/implement/SKILL.md",
-      "computedHash": "560465496ad0669329993bfdd0604e5c93b5c2446309a76f486040010b063908"
+      "computedHash": "6d558f3f35fb0f1db27d937b1c5025683fe1e307c2c12bc93cd349b91d7f824c"
+    },
+    "playwright-cli": {
+      "source": "@playwright/cli",
+      "sourceType": "local-package",
+      "version": "0.1.25",
+      "skillDir": "skills/playwright-cli",
+      "skillPath": "skills/playwright-cli/SKILL.md",
+      "computedHash": "0de7359cb9a008d0b0fcd355a13740f7635044d55a4306cfb21d8cc3b9f93763"
     },
     "setup-matt-pocock-skills": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/setup-matt-pocock-skills",
       "skillPath": "skills/engineering/setup-matt-pocock-skills/SKILL.md",
-      "computedHash": "9659e7025d4cf1c0a0b40ddff32ed4b8debb87a4b20d7a52ff89c506a638df69"
+      "computedHash": "e23001df24f4507c5275b2144fed9268e0468c7d61d643a78f83345dec2dfa83"
     },
     "tdd": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/tdd",
       "skillPath": "skills/engineering/tdd/SKILL.md",
-      "computedHash": "e3e0f78ff1c2d52ffefa0378baa1e80e129d359288cf9a56f4e59afcd2aac86c"
+      "computedHash": "b86dc370fd2ff43ba9c21e54fba9b1f4927f838177ff314a9528fc7243eb624c"
     },
     "to-spec": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/to-spec",
       "skillPath": "skills/engineering/to-spec/SKILL.md",
-      "computedHash": "eb934b5eda9523c7853a2741544bd4721ee1bea471f5a04f8397827f67bdbdda"
+      "computedHash": "f8041146ec1678c32304f46c9de99b73a4b5dadf664e35a8124be47c4cfe3196"
     },
     "to-tickets": {
       "source": "mattpocock/skills",
-      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
       "sourceType": "github",
+      "commit": "abeeaf95660ba9e8b7c753eb38f441ca707a8823",
+      "skillDir": "skills/engineering/to-tickets",
       "skillPath": "skills/engineering/to-tickets/SKILL.md",
-      "computedHash": "17496514c92954f68eacdf2b1221e2ddb39fa231b83f03c70bc7d4422f704b2d"
+      "computedHash": "f74f194dd91c8f3ed7445267a3fd26480398a4baeb3c2a1b1008c4bf09105725"
+    },
+    "ui-ux-pro-max": {
+      "source": "ui-ux-pro-max-cli",
+      "sourceType": "npm-cli",
+      "version": "2.15.0",
+      "commit": "a38d04c3d5c298c851dbe5e6ee1965ee3de42cb5",
+      "aiTarget": "universal",
+      "skillDir": ".agents/skills/ui-ux-pro-max",
+      "skillPath": ".agents/skills/ui-ux-pro-max/SKILL.md",
+      "computedHash": "76da06953b0c5f7b4db0e307787794fa81a67f64c76b506a2ab047edd5e6d3e7"
+    },
+    "web-design-guidelines": {
+      "source": "vercel-labs/agent-skills",
+      "sourceType": "github",
+      "commit": "53b6e3ddf96b3fa83af97b1783ed805b582ad3a7",
+      "skillDir": "skills/web-design-guidelines",
+      "skillPath": "skills/web-design-guidelines/SKILL.md",
+      "computedHash": "c0a42a031832ef356aa550855ab608eb36f919d0e6460bbca6958f516b022424"
     }
   }
 }
