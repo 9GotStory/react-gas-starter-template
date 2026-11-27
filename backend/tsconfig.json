@@ -10,5 +10,5 @@
     "noUnusedParameters": true,
     "types": ["google-apps-script"]
   },
-  "include": ["src"]
+  "include": ["src", "test"]
 }

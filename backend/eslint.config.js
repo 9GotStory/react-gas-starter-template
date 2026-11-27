@@ -40,7 +40,7 @@ export default tseslint.config(
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['src/**/*.test.ts', '*.mjs', 'eslint.config.js'],
+    files: ['src/**/*.test.ts', 'test/**/*.ts', '*.mjs', 'eslint.config.js'],
     languageOptions: {
       ecmaVersion: 2022,
       globals: globals.node,

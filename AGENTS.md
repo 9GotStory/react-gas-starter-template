@@ -15,8 +15,8 @@ Run these exact commands from the repository root (do not guess scripts). Runtim
 
 - **Base Template Verification (Offline):** `npm ci`, `npm run check`, `npm run build`, and `npm run verify:gas-bundle` (verifies `backend/dist/` contains strictly `Code.js` and `appsscript.json`, exposes top-level `doGet`/`doPost` globals, and stays within the bundle size budget).
 - **Full check:** `npm run check` (runs `typecheck`, `lint`, `format:check`, and `test`)
-- **Test (single):** `npm --workspace=frontend run test -- path/to/file.test.ts` (or `--workspace=backend`)
-- **Test (full):** `npm run test`
+- **Test (single):** `npm --workspace=frontend run test -- path/to/file.test.ts` (or `--workspace=backend`, or `npm run test:contract` for cross-workspace API contract tests)
+- **Test (full):** `npm run test` (runs frontend, backend, and cross-workspace API contract tests)
 - **Typecheck:** `npm run typecheck`
 - **Lint & Format:** `npm run lint && npm run format:check`
 - **Production Build:** `npm run build` (builds both `frontend/dist/` and `backend/dist/`)
@@ -47,7 +47,7 @@ Do NOT read all docs upfront. Load only when relevant to the current task:
 - **Base Template boundary:** Never create a GAS project, bind Google Sheets, run `clasp push`/`deploy` (`npm run gas:push`, `npm run gas:deploy`), or request Google credentials to test this Base Template.
 - Never run destructive Sheet operations, `npm run gas:push`, or `npm run gas:deploy` in connected projects without explicit user confirmation.
 - Do not manually edit generated or dependency directories (`node_modules/`, `dist/`, `build/`).
-- No `useEffect` + `fetch` in `frontend/` — use `gasClient` + TanStack Query hooks only; send GAS `POST` as `text/plain;charset=utf-8` or `application/x-www-form-urlencoded` without unnecessary custom headers (avoid CORS preflight).
+- No `useEffect` + `fetch` in `frontend/` — use `gasClient` + TanStack Query hooks only; enforce configurable 20s timeout (`TIMEOUT`) distinct from caller cancellation (`ABORTED`), support absolute and relative URLs, classify HTTP 200 HTML/non-JSON responses as `NON_JSON_RESPONSE`, retry queries at most once strictly on transient errors (`TIMEOUT`, `NETWORK_ERROR`, `LOCK_TIMEOUT`, HTTP `429`/`5xx`) with `mutations.retry = 0`, and send GAS `POST` as `text/plain;charset=utf-8` or `application/x-www-form-urlencoded` without unnecessary custom headers (avoid CORS preflight).
 - Require explicit `SPREADSHEET_ID` from Script Properties (`CONFIG_MISSING` when unset; no `getActiveSpreadsheet()` fallback — ADR-0002), keep `doGet` strictly read-only, use batch Sheets I/O only, apply `.setNumberFormat("@")` to all `Item` text columns (`id`, `code`, `name`, `createdAt`) before `.setValues()`, filter blank rows and normalize `Date` cells to ISO-8601 on read, wrap writes + `SpreadsheetApp.flush()` in `LockService.getScriptLock()` (`finally` release), sanitize formula injection (`=`, `+`, `-`, `@`, `\t`, `\r`), emit structured JSON logs without secrets/PII/Spreadsheet IDs with generic `INTERNAL_ERROR` responses, and respect official GAS quotas without premature quota-management frameworks.
 
 ## Agent skills

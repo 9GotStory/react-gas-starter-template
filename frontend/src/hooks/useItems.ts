@@ -6,7 +6,7 @@ export const ITEMS_QUERY_KEY = ['items'] as const;
 export function useItems() {
   return useQuery({
     queryKey: ITEMS_QUERY_KEY,
-    queryFn: () => fetchItems(),
+    queryFn: ({ signal }) => fetchItems({ signal }),
   });
 }
 

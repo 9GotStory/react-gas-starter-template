@@ -13,8 +13,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 - **Frontend (`frontend/`):**
   - **React 19 + Vite 7 + TypeScript + Tailwind CSS v4**
-  - **TanStack Query v5** ตั้งค่า default ให้เหมาะกับโควตาและ cold-start ของ GAS (`refetchOnWindowFocus: false`, `staleTime: 5 * 60 * 1000`, `retry: 1`) ใน `frontend/src/lib/queryClient.ts`
-  - **Single GAS API Client** (`frontend/src/api/gasClient.ts`) ส่ง `POST` แบบ simple request (`Content-Type: text/plain;charset=utf-8` หรือ `application/x-www-form-urlencoded`) โดยไม่ใส่ Custom Headers เกินจำเป็นเพื่อเลี่ยง CORS preflight ของ GAS และ validate response JSON จาก `unknown` ทุกครั้ง
+  - **TanStack Query v5** ตั้งค่า default ให้เหมาะกับโควตาและ cold-start ของ GAS (`refetchOnWindowFocus: false`, `staleTime: 5 * 60 * 1000`, retry queries ได้สูงสุด 1 ครั้งเฉพาะ transient errors: `TIMEOUT`, `NETWORK_ERROR`, `LOCK_TIMEOUT`, HTTP `429`/`5xx`, ไม่ retry `ABORTED` หรือ validation/config/contract errors และตั้ง `mutations.retry: 0`) ใน `frontend/src/lib/queryClient.ts`
+  - **Single GAS API Client** (`frontend/src/api/gasClient.ts`) รองรับทั้ง absolute GAS URL และ relative path (`/api/gas`), บังคับ request timeout (ค่าเริ่มต้น `20_000` ms) ด้วย `AbortController` พร้อมส่งต่อ `AbortSignal` และแยก `TIMEOUT` ออกจาก `ABORTED`, แปลง HTTP 200 HTML/non-JSON เป็น typed `NON_JSON_RESPONSE` error, ส่ง `POST` แบบ simple request (`Content-Type: text/plain;charset=utf-8` หรือ `application/x-www-form-urlencoded`) โดยไม่ใส่ Custom Headers เกินจำเป็นเพื่อเลี่ยง CORS preflight ของ GAS และ validate response JSON จาก `unknown` ทุกครั้ง
   - **นโยบาย Routing:** ยังไม่ติดตั้ง `react-router` ล่วงหน้าเพื่อให้ Single-Page App เบาที่สุด หาก Spec ต้องการหลายหน้า/หลาย URL ให้ติดตั้งและใช้ `react-router` เป็นมาตรฐาน
 - **Backend (`backend/`):**
   - **TypeScript + `@types/google-apps-script`** แยก entrypoint (`backend/src/main.ts` รองรับ `doGet`/`doPost` ตามความเหมาะสม) และ pure logic (`backend/src/sheetsLogic.ts`) ออกจากกันชัดเจน ไม่ต้องเขียน logic ซ้ำสองที่
@@ -23,7 +23,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
   - **ตรวจสอบ GAS Bundle แบบ Offline** (`npm run verify:gas-bundle` / `backend/verify-gas-bundle.mjs`) ยืนยันว่า `backend/dist/` มีเฉพาะ `Code.js` กับ `appsscript.json`, `appsscript.json` เป็น JSON object ที่ถูกต้อง, `Code.js` expose global `doGet`/`doPost` และมีขนาดไม่เกินงบประมาณ (`100 KiB`)
   - **Deploy ด้วย `@google/clasp` v3** (ติดตั้งเป็น devDependency ใน `backend/` พร้อมใช้งานทันที) ชี้ `srcDir: "dist"` / `rootDir: "dist"` ทำให้ `clasp` track เฉพาะไฟล์ที่ build แล้ว ไม่หลุดไฟล์เทสหรือ config ขึ้น GAS
 - **Quality & Verification:**
-  - **Vitest** (ครอบคลุมทั้ง `frontend/` แบบ `jsdom` + Testing Library และ `backend/` แบบ `node` offline) + **ESLint** + **Prettier** + **TypeScript (`tsc --noEmit`)** + **Vite build + esbuild GAS bundle**
+  - **Vitest** (ครอบคลุม `frontend/` แบบ `jsdom` + Testing Library, `backend/` แบบ `node` offline และ Cross-Workspace API Contract Tests ใน `tests/contract/api.contract.test.ts` ที่เชื่อม `gasClient` เข้ากับ `doGet`/`doPost` โดยตรงในหน่วยความจำตาม ADR-0001) + **ESLint** + **Prettier** + **TypeScript (`tsc --noEmit`)** + **Vite build + esbuild GAS bundle**
   - **Browser QA ด้วย Playwright CLI / MCP:** ใช้ `npx playwright-cli` (ประหยัด token) หรือ **Playwright MCP** ใน `.mcp.json` เลือกใช้อย่างใดอย่างหนึ่ง (ไม่ต้องใช้พร้อมกัน และยังไม่เพิ่ม Playwright E2E test suite ล่วงหน้า)
     - **ใน Base Template (Offline):** ใช้ **Mock API** ทดสอบ UI, Responsive และ Interactions โดยไม่ต้องเชื่อมต่อ GAS จริง
     - **ในโปรเจกต์ที่เชื่อมต่อ GAS จริงแล้วเท่านั้น:** ทดสอบ CORS, HTTP `302` redirect ไป `script.googleusercontent.com` และการอ่าน JSON Response ผ่าน Browser จริงก่อนสรุปว่าใช้งานได้
@@ -47,7 +47,12 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 ├── .gitignore                       # ดัก .env*, .clasp.json, .clasprc.json, .scratch/, .playwright-cli/, dist/
 ├── .nvmrc                           # ตรึง Node.js 26 Active LTS
 ├── package.json                     # Root workspaces, engines/packageManager (Node 26 / npm 11) & scripts
-├── vitest.config.ts                 # Root Vitest projects config (frontend + backend)
+├── vitest.config.ts                 # Root Vitest projects config (frontend + backend + contract)
+├── tests/
+│   └── contract/
+│       ├── api.contract.test.ts     # Cross-workspace API contract tests (gasClient <-> doGet/doPost)
+│       ├── eslint.config.mjs        # ESLint config สำหรับชุด contract tests
+│       └── tsconfig.json            # TypeScript strict config สำหรับชุด contract tests
 ├── docs/
 │   └── adr/
 │       └── 0000-template.md         # เทมเพลต ADR พร้อมเกณฑ์กรอง 3 ข้อ
@@ -59,12 +64,13 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │   ├── vite.config.ts               # Vite + React + Tailwind v4 + Vitest (jsdom)
 │   └── src/
 │       ├── api/
-│       │   ├── gasClient.ts         # API client จุดเดียว + validate envelope จาก unknown
-│       │   └── gasClient.test.ts    # Unit tests ของ gasClient
+│       │   ├── gasClient.ts         # API client จุดเดียว (20s timeout, ABORTED/TIMEOUT, relative URL, NON_JSON_RESPONSE)
+│       │   └── gasClient.test.ts    # Unit tests ของ gasClient ที่ fetch seam
 │       ├── hooks/
-│       │   └── useItems.ts          # ตัวอย่าง TanStack Query hooks (useQuery / useMutation)
+│       │   └── useItems.ts          # ตัวอย่าง TanStack Query hooks (ส่งต่อ AbortSignal ใน useQuery)
 │       ├── lib/
-│       │   └── queryClient.ts       # QueryClient ค่าเริ่มต้นที่เหมาะกับ GAS
+│       │   ├── queryClient.ts       # QueryClient ค่าเริ่มต้น (selective query retry + mutations.retry = 0)
+│       │   └── queryClient.test.ts  # Tests นโยบาย selective retry และ zero mutation retry
 │       ├── App.tsx                  # หน้าตัวอย่างจัดการ loading / empty / error / data
 │       └── App.test.tsx             # Component tests ด้วย Testing Library
 └── backend/
@@ -80,6 +86,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
     ├── dist/                        # โฟลเดอร์ผลลัพธ์จากการ build (gitignored, ใช้ push ขึ้น GAS)
     │   ├── Code.js                  # ไฟล์ที่ bundle พร้อม global doGet / doPost
     │   └── appsscript.json          # Manifest ที่คัดลอกมาเพื่อ push
+    ├── test/
+    │   └── mockGasHarness.ts        # In-memory GAS service doubles ใช้ร่วมกันระหว่าง backend และ contract tests
     └── src/
         ├── logger.ts                # Structured JSON logger (Cloud Logging, ตัด secrets/PII/Spreadsheet ID)
         ├── logger.test.ts           # Unit tests ของ structured logger และการกรอง sensitive keys
@@ -266,13 +274,14 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `npm run dev`                                               | เปิด Vite dev server ของ `frontend/` (`npm --workspace=frontend run dev`)                                     |
 | `npm run build`                                             | Build ทั้ง `frontend/dist/` (Vite) และ `backend/dist/` (`esbuild` สำหรับ GAS)                                   |
-| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง 2 workspace                                 |
+| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง `frontend`, `backend` และ `contract`        |
 | `npm run verify:gas-bundle`                                 | ตรวจ `backend/dist/` แบบ offline (เฉพาะ `Code.js` + `appsscript.json`, global `doGet`/`doPost`, size budget) |
-| `npm run typecheck`                                         | รัน `tsc --noEmit` ทั้ง `frontend` และ `backend`                                                                |
-| `npm run lint`                                              | รัน `eslint .` ทั้ง `frontend` และ `backend`                                                                    |
+| `npm run typecheck`                                         | รัน `tsc --noEmit` ทั้ง `frontend`, `backend` และ `tests/contract`                                              |
+| `npm run lint`                                              | รัน `eslint` ทั้ง `frontend`, `backend` และ `tests/contract`                                                    |
 | `npm run format:check`                                      | ตรวจฟอร์แมตทั้ง repo ด้วย `prettier --check .`                                                                   |
-| `npm run test`                                              | รัน Vitest unit tests แบบ offline ทั้ง `frontend` และ `backend`                                                 |
-| `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุมทั้ง 2 workspace ผ่าน `vitest.config.ts`                                            |
+| `npm run test`                                              | รัน Vitest tests แบบ offline ครบทั้ง `frontend`, `backend` และ `contract`                                       |
+| `npm run test:contract`                                     | รันเฉพาะ cross-workspace API contract tests (`tests/contract/api.contract.test.ts`)                           |
+| `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุม `frontend`, `backend` และ `contract` ผ่าน `vitest.config.ts`                     |
 | `npm --workspace=frontend run test -- path/to/file.test.ts` | รันเทสทีละไฟล์ฝั่ง `frontend` (เปลี่ยนเป็น `--workspace=backend` สำหรับฝั่ง backend)                                    |
 | `npm run skills:sync:matt`                                  | ติดตั้ง/ซิงก์ Matt Pocock Core 12 สกิลลง `.agents/skills/`                                                         |
 | `npm run skills:sync:ui`                                    | ติดตั้ง/ซิงก์ UI/UX Pro Max สกิลลง `.agents/skills/`                                                               |
