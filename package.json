@@ -2,6 +2,11 @@
   "name": "react-gas-starter-template",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=26.0.0 <27.0.0",
+    "npm": ">=11.0.0 <12.0.0"
+  },
+  "packageManager": "npm@11.20.0",
   "workspaces": [
     "frontend",
     "backend"
@@ -15,6 +20,7 @@
     "lint": "npm --workspace=frontend run lint && npm --workspace=backend run lint",
     "format:check": "prettier --check .",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test",
+    "verify:gas-bundle": "npm --workspace=backend run verify:gas-bundle",
     "gas:login": "npm --workspace=backend run gas:login",
     "gas:status": "npm --workspace=backend run gas:status",
     "gas:push": "npm --workspace=backend run gas:push",

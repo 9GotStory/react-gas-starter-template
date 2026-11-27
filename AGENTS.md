@@ -11,15 +11,16 @@
 
 ## Verification Commands
 
-Run these exact commands from the repository root (do not guess scripts):
+Run these exact commands from the repository root (do not guess scripts). Runtime is pinned to **Node.js 26 Active LTS** (`.nvmrc`) and **npm 11** (`engines` / `packageManager`):
 
-- **Base Template Verification (Offline):** `npm ci`, `npm run check`, `npm run build`, and confirm `backend/dist/` contains strictly `Code.js` and `appsscript.json`.
+- **Base Template Verification (Offline):** `npm ci`, `npm run check`, `npm run build`, and `npm run verify:gas-bundle` (verifies `backend/dist/` contains strictly `Code.js` and `appsscript.json`, exposes top-level `doGet`/`doPost` globals, and stays within the bundle size budget).
 - **Full check:** `npm run check` (runs `typecheck`, `lint`, `format:check`, and `test`)
 - **Test (single):** `npm --workspace=frontend run test -- path/to/file.test.ts` (or `--workspace=backend`)
 - **Test (full):** `npm run test`
 - **Typecheck:** `npm run typecheck`
 - **Lint & Format:** `npm run lint && npm run format:check`
 - **Production Build:** `npm run build` (builds both `frontend/dist/` and `backend/dist/`)
+- **GAS Bundle Verification:** `npm run verify:gas-bundle` (offline check of `backend/dist/` file list, global `doGet`/`doPost` entrypoints, valid manifest JSON, and size budget)
 - **Browser QA:** Use **Playwright CLI** (`npx playwright-cli`, preferred for token efficiency) or **Playwright MCP** (`.mcp.json`) — choose one per session (never both). In this Base Template, use a **Mock API** to verify UI, responsive layouts, and interactions without live GAS. Verify live GAS CORS, `script.googleusercontent.com` redirect, and JSON response reading in a real browser **only** in projects connected to a real GAS deployment.
 
 ## Source of Truth (Read on Demand)

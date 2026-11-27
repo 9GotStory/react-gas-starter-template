@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "verify:gas-bundle": "node verify-gas-bundle.mjs",
     "gas:login": "clasp login",
     "gas:status": "clasp show-file-status",
     "gas:push": "npm run build && clasp push",

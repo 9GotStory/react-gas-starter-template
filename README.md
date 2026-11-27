@@ -2,11 +2,14 @@
 
 GitHub Base Template Repository แบบ Monorepo สำหรับสร้างเว็บแอปด้วย **React (Vite + TypeScript + Tailwind CSS + TanStack Query)** คู่กับ **Google Apps Script (GAS) Web App + Google Sheets** ที่เขียนด้วย TypeScript, bundle ด้วย **esbuild** และ deploy ผ่าน **`@google/clasp` v3** พร้อมวางระบบเอกสารและสกิลสำหรับ AI-Assisted Development ครบชุด
 
-> **หมายเหตุ (Base Template Scope):** Repository นี้เป็น **Base Template ที่ยังไม่ได้เชื่อมต่อ Google Apps Script หรือ Google Sheets จริง** การตรวจสอบตัว Template ให้ทำแบบ **Offline Verification เท่านั้น** (`npm ci`, `npm run check`, `npm run build`, ตรวจว่า `backend/dist/` มีเฉพาะ `Code.js` กับ `appsscript.json` และใช้ Playwright กับ Mock API) — AI Agent ต้องไม่สร้าง GAS Project, ผูก Google Sheets, รัน `clasp push`/`deploy` หรือร้องขอ Credentials เพื่อทดสอบ Base Template นี้
+> **หมายเหตุ (Base Template Scope):** Repository นี้เป็น **Base Template ที่ยังไม่ได้เชื่อมต่อ Google Apps Script หรือ Google Sheets จริง** การตรวจสอบตัว Template ให้ทำแบบ **Offline Verification เท่านั้น** (`npm ci`, `npm run check`, `npm run build`, `npm run verify:gas-bundle` และใช้ Playwright กับ Mock API) — AI Agent ต้องไม่สร้าง GAS Project, ผูก Google Sheets, รัน `clasp push`/`deploy` หรือร้องขอ Credentials เพื่อทดสอบ Base Template นี้
 
 ---
 
 ## Tech Stack & Tooling
+
+- **Runtime:**
+  - **Node.js 26 Active LTS + npm 11** ตรึงเวอร์ชันตรงกันทุกจุดผ่าน `.nvmrc`, `engines` และ `packageManager` ใน `package.json` (ADR-0005)
 
 - **Frontend (`frontend/`):**
   - **React 19 + Vite 7 + TypeScript + Tailwind CSS v4**
@@ -15,7 +18,9 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
   - **นโยบาย Routing:** ยังไม่ติดตั้ง `react-router` ล่วงหน้าเพื่อให้ Single-Page App เบาที่สุด หาก Spec ต้องการหลายหน้า/หลาย URL ให้ติดตั้งและใช้ `react-router` เป็นมาตรฐาน
 - **Backend (`backend/`):**
   - **TypeScript + `@types/google-apps-script`** แยก entrypoint (`backend/src/main.ts` รองรับ `doGet`/`doPost` ตามความเหมาะสม) และ pure logic (`backend/src/sheetsLogic.ts`) ออกจากกันชัดเจน ไม่ต้องเขียน logic ซ้ำสองที่
-  - **Bundle ด้วย `esbuild`** (`backend/build.mjs`) ออกเป็น `backend/dist/Code.js` (พร้อม global footer `doGet(e)` / `doPost(e)` สำหรับ Apps Script V8) และคัดลอก `backend/appsscript.json` ลง `backend/dist/appsscript.json`
+  - **Bundle ด้วย `esbuild`** (`backend/build.mjs`) ออกเป็น `backend/dist/Code.js` (พร้อม global footer `doGet(e)` / `doPost(e)` สำหรับ Apps Script V8) และคัดลอก `backend/appsscript.json` (ค่าเริ่มต้นแบบ fail-closed: `executeAs: "USER_DEPLOYING"`, `access: "MYSELF"`, explicit scope `https://www.googleapis.com/auth/spreadsheets` ตาม ADR-0003) ลง `backend/dist/appsscript.json`
+  - **แยกขอบเขต ESLint ฝั่ง Backend** (`backend/eslint.config.js`) ให้ไฟล์ GAS runtime (`src/**/*.ts`) ไม่อนุญาต Node.js-only globals หรือ `node:*` imports ขณะที่สคริปต์ฝั่ง Node.js (`build.mjs`, `verify-gas-bundle.mjs`) ยังใช้ Node.js globals ได้ตามปกติ
+  - **ตรวจสอบ GAS Bundle แบบ Offline** (`npm run verify:gas-bundle` / `backend/verify-gas-bundle.mjs`) ยืนยันว่า `backend/dist/` มีเฉพาะ `Code.js` กับ `appsscript.json`, `appsscript.json` เป็น JSON object ที่ถูกต้อง, `Code.js` expose global `doGet`/`doPost` และมีขนาดไม่เกินงบประมาณ (`100 KiB`)
   - **Deploy ด้วย `@google/clasp` v3** (ติดตั้งเป็น devDependency ใน `backend/` พร้อมใช้งานทันที) ชี้ `srcDir: "dist"` / `rootDir: "dist"` ทำให้ `clasp` track เฉพาะไฟล์ที่ build แล้ว ไม่หลุดไฟล์เทสหรือ config ขึ้น GAS
 - **Quality & Verification:**
   - **Vitest** (ครอบคลุมทั้ง `frontend/` แบบ `jsdom` + Testing Library และ `backend/` แบบ `node` offline) + **ESLint** + **Prettier** + **TypeScript (`tsc --noEmit`)** + **Vite build + esbuild GAS bundle**
@@ -40,7 +45,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 ├── GLOSSARY.md                      # โครงเปล่าสำหรับคำศัพท์โดเมนและ Sheet-to-entity mapping
 ├── .mcp.json                        # การตั้งค่า Context7 MCP + Playwright MCP
 ├── .gitignore                       # ดัก .env*, .clasp.json, .clasprc.json, .scratch/, .playwright-cli/, dist/
-├── package.json                     # Root workspaces & scripts
+├── .nvmrc                           # ตรึง Node.js 26 Active LTS
+├── package.json                     # Root workspaces, engines/packageManager (Node 26 / npm 11) & scripts
 ├── vitest.config.ts                 # Root Vitest projects config (frontend + backend)
 ├── docs/
 │   └── adr/
@@ -63,9 +69,13 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │       └── App.test.tsx             # Component tests ด้วย Testing Library
 └── backend/
     ├── .clasp.json.example          # ตัวอย่าง clasp config (srcDir: "dist")
-    ├── appsscript.json              # Apps Script V8 Web App manifest
+    ├── appsscript.json              # Apps Script V8 Web App manifest (fail-closed: MYSELF + spreadsheets scope)
     ├── build.mjs                    # esbuild bundler -> dist/Code.js + dist/appsscript.json
-    ├── package.json                 # Dependencies (@google/clasp v3, esbuild) & gas:* scripts
+    ├── eslint.config.js             # ESLint แยก GAS runtime source ออกจาก Node.js scripts
+    ├── eslint.config.test.mjs       # Offline tests ยืนยันขอบเขต GAS vs Node.js globals ของ ESLint
+    ├── verify-gas-bundle.mjs        # ตัวตรวจ GAS bundle แบบ offline (ไฟล์, global doGet/doPost, size budget)
+    ├── verify-gas-bundle.test.mjs   # Offline tests ของ verify-gas-bundle ด้วย temp fixtures
+    ├── package.json                 # Dependencies (@google/clasp v3, esbuild) & gas:* / verify:gas-bundle scripts
     ├── tsconfig.json                # TypeScript config พร้อม @types/google-apps-script
     ├── dist/                        # โฟลเดอร์ผลลัพธ์จากการ build (gitignored, ใช้ push ขึ้น GAS)
     │   ├── Code.js                  # ไฟล์ที่ bundle พร้อม global doGet / doPost
@@ -95,10 +105,9 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
    ```bash
    npm run skills:sync
    ```
-5. ตรวจสอบว่าทุกอย่างผ่านเขียวแบบ Offline (`npm ci` สำหรับ clean install, `npm run check`, `npm run build` และตรวจว่า `backend/dist/` มีเพียง `Code.js` กับ `appsscript.json`):
+5. ตรวจสอบว่าทุกอย่างผ่านเขียวแบบ Offline (`npm ci` สำหรับ clean install, `npm run check`, `npm run build` และตรวจ GAS bundle ด้วย `npm run verify:gas-bundle`):
    ```bash
-   npm run check && npm run build
-   ls backend/dist
+   npm run check && npm run build && npm run verify:gas-bundle
    ```
 
 ### ขั้นที่ 2: ผูก Google Apps Script ด้วย `@google/clasp` v3 _(เฉพาะโปรเจกต์จริงที่สร้างจาก Template แล้วเท่านั้น)_
@@ -139,7 +148,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
    ```bash
    npm run gas:open
    ```
-   > **ข้อจำกัดด้านสิทธิ์เข้าถึง Web App และ CORS (`backend/appsscript.json`):** ค่าเริ่มต้นตั้งเป็น `executeAs: "USER_DEPLOYING"` และ `access: "ANYONE_ANONYMOUS"` เพื่อลดโอกาสที่คำขอข้ามโดเมนจะถูกส่งไปหน้า Google Sign-In HTML (เช่นกรณีจำกัดสิทธิ์เป็น `MYSELF` / `DOMAIN` / `ANYONE` โดยไม่มี Google session) **แต่การตั้งค่า `ANYONE_ANONYMOUS` เพียงอย่างเดียวไม่ได้รับประกันว่า browser `fetch()` จะอ่าน JSON Response ได้สำเร็จ** (ยังขึ้นอยู่กับ CORS, HTTP `302` redirect ไป `script.googleusercontent.com`, รูปแบบ `Content-Type` / headers และนโยบายของ Google Workspace) — **ต้องทดสอบยืนยัน CORS, Redirect และการอ่าน JSON Response จาก Deployment จริงใน Browser ด้วย Playwright CLI/MCP ก่อนสรุปว่าใช้งานได้** ทั้งนี้ `ANYONE_ANONYMOUS` เปิดให้เรียกได้จากภายนอก หากมีข้อมูลอ่อนไหวให้เพิ่ม Authentication/Authorization เป็น Project-Specific Requirement และทุกครั้งที่แก้โค้ดหรือเพิ่ม OAuth scopes ต้องอัปเดต Deployment จึงจะมีผลกับ `/exec` URL ([Google Web Apps Docs](https://developers.google.com/apps-script/guides/web) · [ContentService Docs](https://developers.google.com/apps-script/guides/content))
+   > **นโยบายความปลอดภัยเริ่มต้นของ Web App Manifest และ CORS (`backend/appsscript.json`, ADR-0003):** ค่าเริ่มต้นของ Template ตั้งเป็น **fail-closed** (`executeAs: "USER_DEPLOYING"`, `access: "MYSELF"`) พร้อมระบุ OAuth scope แบบ least-privilege (`oauthScopes: ["https://www.googleapis.com/auth/spreadsheets"]`) เพื่อป้องกันการเปิดเผย Google Sheet สู่สาธารณะโดยไม่ตั้งใจ หากโปรเจกต์ปลายทางจำเป็นต้องเปลี่ยนเป็น `access: "ANYONE_ANONYMOUS"` เพื่อให้ Cross-Origin React SPA เรียกได้โดยไม่ติดหน้า Google Sign-In HTML **ต้องผ่าน Security Review ก่อน deploy และต้องตรวจสอบ Token ฝั่ง Backend จริง (signature, `iss`, `aud`, `exp`) พร้อมเช็กสิทธิ์ก่อนอ่าน/เขียน Sheet** โดยส่ง Token ใน `POST` body เท่านั้น (ห้ามส่งใน URL query parameters หรือฝัง secret ใน `VITE_*`) และยังคงต้องทดสอบยืนยัน CORS, HTTP `302` redirect ไป `script.googleusercontent.com` และการอ่าน JSON Response จาก Deployment จริงใน Browser ด้วย Playwright CLI/MCP ก่อนสรุปว่าใช้งานได้ ทุกครั้งที่แก้โค้ดหรือแก้ OAuth scopes ต้องอัปเดต Deployment จึงจะมีผลกับ `/exec` URL ([Google Web Apps Docs](https://developers.google.com/apps-script/guides/web) · [ContentService Docs](https://developers.google.com/apps-script/guides/content))
 7. รันหน้าเว็บทดสอบในเครื่อง:
    ```bash
    npm run dev
@@ -250,38 +259,40 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 ### 1. Root Scripts (`package.json`)
 
-| คำสั่ง                                                        | คำสั่งจริง / คำอธิบาย                                                             |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `npm run dev`                                               | เปิด Vite dev server ของ `frontend/` (`npm --workspace=frontend run dev`)      |
-| `npm run build`                                             | Build ทั้ง `frontend/dist/` (Vite) และ `backend/dist/` (`esbuild` สำหรับ GAS)    |
-| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง 2 workspace  |
-| `npm run typecheck`                                         | รัน `tsc --noEmit` ทั้ง `frontend` และ `backend`                                 |
-| `npm run lint`                                              | รัน `eslint .` ทั้ง `frontend` และ `backend`                                     |
-| `npm run format:check`                                      | ตรวจฟอร์แมตทั้ง repo ด้วย `prettier --check .`                                    |
-| `npm run test`                                              | รัน Vitest unit tests แบบ offline ทั้ง `frontend` และ `backend`                  |
-| `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุมทั้ง 2 workspace ผ่าน `vitest.config.ts`             |
-| `npm --workspace=frontend run test -- path/to/file.test.ts` | รันเทสทีละไฟล์ฝั่ง `frontend` (เปลี่ยนเป็น `--workspace=backend` สำหรับฝั่ง backend)     |
-| `npm run skills:sync:matt`                                  | ติดตั้ง/ซิงก์ Matt Pocock Core 12 สกิลลง `.agents/skills/`                          |
-| `npm run skills:sync:ui`                                    | ติดตั้ง/ซิงก์ UI/UX Pro Max สกิลลง `.agents/skills/`                                |
-| `npm run skills:sync:playwright`                            | ติดตั้ง/ซิงก์ Playwright CLI Skill ลง `.agents/skills/playwright-cli/`             |
-| `npm run skills:sync`                                       | รัน `skills:sync:matt`, `skills:sync:ui` และ `skills:sync:playwright` ต่อเนื่องกัน |
+| คำสั่ง                                                        | คำสั่งจริง / คำอธิบาย                                                                                            |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `npm run dev`                                               | เปิด Vite dev server ของ `frontend/` (`npm --workspace=frontend run dev`)                                     |
+| `npm run build`                                             | Build ทั้ง `frontend/dist/` (Vite) และ `backend/dist/` (`esbuild` สำหรับ GAS)                                   |
+| `npm run check`                                             | รันชุดตรวจสอบครบ `typecheck` + `lint` + `format:check` + `test` ทั้ง 2 workspace                                 |
+| `npm run verify:gas-bundle`                                 | ตรวจ `backend/dist/` แบบ offline (เฉพาะ `Code.js` + `appsscript.json`, global `doGet`/`doPost`, size budget) |
+| `npm run typecheck`                                         | รัน `tsc --noEmit` ทั้ง `frontend` และ `backend`                                                                |
+| `npm run lint`                                              | รัน `eslint .` ทั้ง `frontend` และ `backend`                                                                    |
+| `npm run format:check`                                      | ตรวจฟอร์แมตทั้ง repo ด้วย `prettier --check .`                                                                   |
+| `npm run test`                                              | รัน Vitest unit tests แบบ offline ทั้ง `frontend` และ `backend`                                                 |
+| `npm run test:watch`                                        | รัน Vitest โหมด watch ครอบคลุมทั้ง 2 workspace ผ่าน `vitest.config.ts`                                            |
+| `npm --workspace=frontend run test -- path/to/file.test.ts` | รันเทสทีละไฟล์ฝั่ง `frontend` (เปลี่ยนเป็น `--workspace=backend` สำหรับฝั่ง backend)                                    |
+| `npm run skills:sync:matt`                                  | ติดตั้ง/ซิงก์ Matt Pocock Core 12 สกิลลง `.agents/skills/`                                                         |
+| `npm run skills:sync:ui`                                    | ติดตั้ง/ซิงก์ UI/UX Pro Max สกิลลง `.agents/skills/`                                                               |
+| `npm run skills:sync:playwright`                            | ติดตั้ง/ซิงก์ Playwright CLI Skill ลง `.agents/skills/playwright-cli/`                                            |
+| `npm run skills:sync`                                       | รัน `skills:sync:matt`, `skills:sync:ui` และ `skills:sync:playwright` ต่อเนื่องกัน                                |
 
 ### 2. Backend & `@google/clasp` v3 Scripts (`backend/package.json`)
 
 สามารถเรียกผ่าน root (`npm run gas:*`) หรือระบุ `--workspace=backend` ได้โดยตรง:
 
-| คำสั่งจาก Root                            | คำสั่งจริงใน `backend/package.json`                         | คำอธิบาย                                                                            |
-| --------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `npm --workspace=backend run build`     | `tsc --noEmit && node build.mjs`                         | Typecheck และ bundle `src/main.ts` → `dist/Code.js` + คัดลอก `dist/appsscript.json` |
-| `npm --workspace=backend run typecheck` | `tsc --noEmit`                                           | ตรวจ TypeScript ฝั่ง backend พร้อม `@types/google-apps-script`                        |
-| `npm --workspace=backend run lint`      | `eslint .`                                               | รัน ESLint บน `src/**/*.ts` และ `build.mjs`                                         |
-| `npm --workspace=backend run test`      | `vitest run`                                             | รัน offline unit tests ใน `backend/src/`                                            |
-| `npm run gas:login`                     | `clasp login`                                            | ล็อกอินบัญชี Google สำหรับ `@google/clasp`                                              |
-| `npm run gas:status`                    | `clasp show-file-status`                                 | แสดงรายการไฟล์ใน `dist/` ที่ `clasp` track สำหรับการ push                              |
-| `npm run gas:push`                      | `npm run build && clasp push`                            | Build `backend/dist/` แล้วอัปโหลดขึ้น Google Apps Script                               |
-| `npm run gas:pull`                      | `clasp pull`                                             | ดึงไฟล์ล่าสุดจาก Google Apps Script                                                    |
-| `npm run gas:open`                      | `clasp open-script`                                      | เปิดโปรเจกต์ใน Apps Script Editor บนเบราว์เซอร์                                        |
-| `npm run gas:deploy`                    | `npm run build && clasp push && clasp create-deployment` | Build, push และสร้าง Web App deployment ใหม่                                         |
+| คำสั่งจาก Root                            | คำสั่งจริงใน `backend/package.json`                         | คำอธิบาย                                                                                |
+| --------------------------------------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `npm --workspace=backend run build`     | `tsc --noEmit && node build.mjs`                         | Typecheck และ bundle `src/main.ts` → `dist/Code.js` + คัดลอก `dist/appsscript.json`     |
+| `npm --workspace=backend run typecheck` | `tsc --noEmit`                                           | ตรวจ TypeScript ฝั่ง backend พร้อม `@types/google-apps-script`                            |
+| `npm --workspace=backend run lint`      | `eslint .`                                               | รัน ESLint แยกขอบเขต GAS runtime (`src/**/*.ts`) และ Node.js scripts (`*.mjs`)          |
+| `npm --workspace=backend run test`      | `vitest run`                                             | รัน offline tests ใน `backend/` (pure logic, ESLint boundary, GAS bundle verifier)      |
+| `npm run verify:gas-bundle`             | `node verify-gas-bundle.mjs`                             | ตรวจ `backend/dist/` แบบ offline (ไฟล์, global `doGet`/`doPost`, manifest, size budget) |
+| `npm run gas:login`                     | `clasp login`                                            | ล็อกอินบัญชี Google สำหรับ `@google/clasp`                                                  |
+| `npm run gas:status`                    | `clasp show-file-status`                                 | แสดงรายการไฟล์ใน `dist/` ที่ `clasp` track สำหรับการ push                                  |
+| `npm run gas:push`                      | `npm run build && clasp push`                            | Build `backend/dist/` แล้วอัปโหลดขึ้น Google Apps Script                                   |
+| `npm run gas:pull`                      | `clasp pull`                                             | ดึงไฟล์ล่าสุดจาก Google Apps Script                                                        |
+| `npm run gas:open`                      | `clasp open-script`                                      | เปิดโปรเจกต์ใน Apps Script Editor บนเบราว์เซอร์                                            |
+| `npm run gas:deploy`                    | `npm run build && clasp push && clasp create-deployment` | Build, push และสร้าง Web App deployment ใหม่                                             |
 
 ---
 
