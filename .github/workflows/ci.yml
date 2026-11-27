@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  quality:
+    name: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js from .nvmrc
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Verify Node 26 LTS and npm 11 runtime
+        run: |
+          node -v
+          npm -v
+          node -e "const major = Number(process.versions.node.split('.')[0]); if (major !== 26) { console.error('Expected Node 26.x, got', process.versions.node); process.exit(1); }"
+          node -e "const { execFileSync } = require('node:child_process'); const ver = execFileSync('npm', ['-v'], { encoding: 'utf8' }).trim(); const major = Number(ver.split('.')[0]); if (major !== 11) { console.error('Expected npm 11.x, got', ver); process.exit(1); }"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run offline checks (typecheck, lint, format, unit/contract/tooling tests, agents:check)
+        run: npm run check
+
+      - name: Build production frontend and GAS backend bundles
+        env:
+          VITE_GAS_API_URL: /api/gas
+        run: npm run build
+
+      - name: Verify GAS bundle offline
+        run: npm run verify:gas-bundle
+
+      - name: Upload built frontend artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          if-no-files-found: error
+          retention-days: 1
+
+  e2e:
+    name: e2e
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js from .nvmrc
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Verify Node 26 LTS and npm 11 runtime
+        run: |
+          node -v
+          npm -v
+          node -e "const major = Number(process.versions.node.split('.')[0]); if (major !== 26) { console.error('Expected Node 26.x, got', process.versions.node); process.exit(1); }"
+          node -e "const { execFileSync } = require('node:child_process'); const ver = execFileSync('npm', ['-v'], { encoding: 'utf8' }).trim(); const major = Number(ver.split('.')[0]); if (major !== 11) { console.error('Expected npm 11.x, got', ver); process.exit(1); }"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download built frontend artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: frontend-dist
+          path: frontend/dist
+
+      - name: Resolve installed Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright Chromium browser
+        id: playwright-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-chromium
+
+      - name: Install Playwright Chromium and OS dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Playwright Chromium OS dependencies (cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      - name: Run offline Playwright E2E, responsive, and WCAG 2.2 AA Axe checks
+        env:
+          PLAYWRIGHT_SKIP_BUILD: '1'
+        run: npm run test:e2e
+
+      - name: Upload Playwright HTML report on failure
+        if: ${{ !cancelled() && failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 7

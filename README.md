@@ -26,7 +26,8 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
   - **Deploy ด้วย `@google/clasp` v3** (ติดตั้งเป็น devDependency ใน `backend/` พร้อมใช้งานทันที) ชี้ `srcDir: "dist"` / `rootDir: "dist"` ทำให้ `clasp` track เฉพาะไฟล์ที่ build แล้ว ไม่หลุดไฟล์เทสหรือ config ขึ้น GAS
 - **Quality & Verification:**
   - **Vitest** (ครอบคลุม `frontend/` แบบ `jsdom` + Testing Library, `backend/` แบบ `node` offline และ Cross-Workspace API Contract Tests ใน `tests/contract/api.contract.test.ts` ที่เชื่อม `gasClient` เข้ากับ `doGet`/`doPost` โดยตรงในหน่วยความจำตาม ADR-0001) + **ESLint** + **Prettier** + **TypeScript (`tsc --noEmit`)** + **Vite build + esbuild GAS bundle**
-  - **Automated Playwright E2E & Accessibility (`npm run test:e2e`, Core — ADR-0004):** รัน `@playwright/test` + `@axe-core/playwright` แบบ offline กับ production bundle จริง (`frontend/dist/`) ผ่าน `vite preview` โดย intercept เฉพาะ HTTP boundary (`page.route()`) ด้วย shared plain `Item` fixtures (`tests/fixtures/items.ts`) เพื่อทดสอบ list/create, การคงเลขศูนย์นำหน้า (`00123`), client/server validation, HTTP 200 HTML (`NON_JSON_RESPONSE`), responsive desktop/mobile, การไม่หลุดของ dev mock middleware ใน production bundle และการสแกน WCAG 2.2 AA ด้วย Axe _(หมายเหตุ: ผลผ่านจาก Axe เป็น minimum automated gate เท่านั้น ไม่เท่ากับการผ่าน WCAG 2.2 AA ครบถ้วน ยังต้องตรวจ keyboard/focus/semantic ด้วยมือเพิ่มเติม)_
+  - **Automated Playwright E2E & Accessibility (`npm run test:e2e`, Core — ADR-0004):** รัน `@playwright/test` + `@axe-core/playwright` แบบ offline กับ production bundle จริง (`frontend/dist/`) ผ่าน `vite preview` โดย intercept เฉพาะ HTTP boundary (`page.route()`) ด้วย shared plain `Item` fixtures (`tests/fixtures/items.ts`) เพื่อทดสอบ list/create, การคงเลขศูนย์นำหน้า (`00123`), client/server validation, HTTP 200 HTML (`NON_JSON_RESPONSE`), responsive desktop/mobile, การไม่หลุดของ dev mock middleware ใน production bundle และการสแกน WCAG 2.2 AA ด้วย Axe (รองรับ `PLAYWRIGHT_SKIP_BUILD=1` สำหรับรันกับ artifact `frontend/dist/` ที่ build มาแล้วใน CI) _(หมายเหตุ: ผลผ่านจาก Axe เป็น minimum automated gate เท่านั้น ไม่เท่ากับการผ่าน WCAG 2.2 AA ครบถ้วน ยังต้องตรวจ keyboard/focus/semantic ด้วยมือเพิ่มเติม)_
+  - **GitHub Actions Offline CI & Dependabot (ADR-0005, ADR-0006):** `.github/workflows/ci.yml` รันอัตโนมัติบน `push` เข้า `main` และทุก `pull_request` ด้วยสิทธิ์ขั้นต่ำ `contents: read`, ยกเลิกรันค้างของ PR เดิมอัตโนมัติ (`concurrency`), ตรึง Node.js 26 Active LTS / npm 11 จาก `.nvmrc` และบังคับ 2 merge-gate jobs แบบ offline 100% (ไม่ใช้ GAS secrets หรือ live network calls): `quality` (`npm ci`, `npm run check` รวม `agents:check`, production builds, `verify:gas-bundle` และ upload `frontend-dist`) ส่งต่อให้ `e2e` (download `frontend-dist`, cache Chromium และรัน Playwright E2E + responsive + WCAG 2.2 AA Axe) พร้อม `.github/dependabot.yml` แยกกลุ่มอัปเดตรายสัปดาห์และ PR/Issue templates ที่สอดคล้องกับ GitHub Flow และ GitHub Issues
   - **Interactive Browser QA ด้วย Playwright CLI / MCP (แยกจาก Automated E2E):** ใช้ `npx playwright-cli` (ประหยัด token) หรือ **Playwright MCP** ใน `.mcp.json` เลือกใช้อย่างใดอย่างหนึ่งต่อ session (ไม่ใช้พร้อมกัน)
     - **ใน Base Template (Offline):** ใช้ Dev-Only Mock API (`npm run dev`) ทดสอบ UI, Responsive และ manual WCAG 2.2 AA keyboard/focus interactions โดยไม่ต้องเชื่อมต่อ GAS จริง
     - **ในโปรเจกต์ที่เชื่อมต่อ GAS จริงแล้วเท่านั้น:** ทดสอบ CORS, HTTP `302` redirect ไป `script.googleusercontent.com` และการอ่าน JSON Response ผ่าน Browser จริงก่อนสรุปว่าใช้งานได้
@@ -50,6 +51,15 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 ├── .mcp.json                        # การตั้งค่า Context7 MCP + Playwright MCP สำหรับ Claude Code (zero secrets)
 ├── .codex/
 │   └── config.toml                  # การตั้งค่า Context7 MCP + Playwright MCP สำหรับ Codex CLI (parity กับ .mcp.json)
+├── .github/
+│   ├── dependabot.yml               # อัปเดตรายสัปดาห์แบบจัดกลุ่มสำหรับ npm (prod/dev minor/patch) และ GitHub Actions
+│   ├── pull_request_template.md     # เทมเพลต PR แบบกระชับ (GitHub Flow, Verification, Security & Schema checklist)
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── config.yml               # เปิด blank_issues_enabled: true เพื่อให้ /to-spec และ /to-tickets ใช้งานได้ลื่นไหล
+│   │   ├── bug_report.md            # เทมเพลตแจ้งบั๊ก (ติดป้าย needs-triage อัตโนมัติ)
+│   │   └── feature_request.md       # เทมเพลตเสนอฟีเจอร์ (เสริมไม่ซ้ำกับ /to-spec และ /to-tickets)
+│   └── workflows/
+│       └── ci.yml                   # Offline CI merge gates: quality -> e2e (Node 26 LTS / npm 11, artifact handoff)
 ├── .gitignore                       # ดัก .env*, .clasp.json, .clasprc.json, .scratch/, .claude/skills, .playwright-cli/, dist/
 ├── .nvmrc                           # ตรึง Node.js 26 Active LTS
 ├── package.json                     # Root workspaces, engines/packageManager (Node 26 / npm 11) & scripts
@@ -352,6 +362,31 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 | `npm run gas:pull`                      | `clasp pull`                                             | ดึงไฟล์ล่าสุดจาก Google Apps Script                                                                                         |
 | `npm run gas:open`                      | `clasp open-script`                                      | เปิดโปรเจกต์ใน Apps Script Editor บนเบราว์เซอร์                                                                             |
 | `npm run gas:deploy`                    | `npm run build && clasp push && clasp create-deployment` | Build, push และสร้าง Web App deployment ใหม่                                                                              |
+
+---
+
+## CI, Dependency Updates & Vulnerability Triage Policy
+
+### 1. Offline CI Merge Gates (`.github/workflows/ci.yml`, ADR-0005 & ADR-0006)
+
+- **Triggers & Safety:** รันอัตโนมัติบน `push` ไปยัง `main` และทุก `pull_request` โดยจำกัดสิทธิ์ไว้ที่ `permissions: contents: read`, ยกเลิกรันเก่าที่ซ้ำซ้อนเฉพาะใน `pull_request` (ไม่ยกเลิกรันบน `main`) และตรึง runtime ที่ **Node.js 26 Active LTS + npm 11** จาก `.nvmrc`
+- **Two Required Merge-Gate Jobs (100% Offline, Zero GAS Secrets):**
+  1. `quality`: รัน `npm ci`, `npm run check` (รวม `typecheck`, `lint`, `format:check`, `test` และ `agents:check`), `VITE_GAS_API_URL=/api/gas npm run build`, `npm run verify:gas-bundle` แล้ว upload production bundle เป็น artifact `frontend-dist`
+  2. `e2e` (`needs: quality`): รัน `npm ci`, download artifact `frontend-dist`, cache และติดตั้ง Chromium (`~/.cache/ms-playwright`) แล้วรัน `PLAYWRIGHT_SKIP_BUILD=1 npm run test:e2e` เพื่อตรวจ E2E, responsive และ WCAG 2.2 AA Axe กับ production bundle จริงโดยไม่ build ซ้ำและไม่เรียก live GAS
+- **Branch Protection & GitHub Flow:** ตั้งค่า Branch Protection บน `main` ให้บังคับผ่านทั้ง status checks `quality` และ `e2e` ก่อน merge และจำไว้ว่า **การ merge เข้า `main` จะไม่ auto-deploy ขึ้น Production** (ADR-0006)
+- **PR & Issue Templates:** `.github/pull_request_template.md` ครอบคลุมสรุปงาน, ลิงก์ GitHub Issue (`Closes #` / `Part of #`), Verification และ Security/Schema Checklist ส่วน `.github/ISSUE_TEMPLATE/` (`bug_report.md`, `feature_request.md`, `config.yml` พร้อม `blank_issues_enabled: true`) ช่วยเปิด issue แบบติดป้าย `needs-triage` โดยไม่ซ้ำซ้อนกับเทมเพลตของ `/to-spec` และ `/to-tickets`
+
+### 2. Dependabot & Vulnerability Triage Policy (ADR-0005)
+
+- **Grouped Weekly Updates (`.github/dependabot.yml`):**
+  - **npm (`directory: "/"` ครอบคลุม root + workspaces):** จัดกลุ่มรายสัปดาห์แยก `production-minor-patch` ออกจาก `development-minor-patch` ส่วน major updates แยกเป็น PR เดี่ยวเพื่อตรวจ breaking changes อย่างรอบคอบ
+  - **GitHub Actions (`github-actions`):** จัดกลุ่มอัปเดตรายสัปดาห์เพื่อให้ action versions ทันสมัยอยู่เสมอ
+- **Repository Security Settings (ต้องเปิดใช้งานใน GitHub หลังสร้างโปรเจกต์):**
+  - เปิด **Dependabot alerts** และ **Dependabot security updates** ใน **Settings → Code security** (หรือ **Security & analysis**) ของ Repository
+- **ทำไมจึงไม่ใช้ `npm audit` เป็น Hard Blocker ใน CI:** ตาม ADR-0005 การตั้ง `npm audit` ให้ fail CI โดยตรงมักทำให้ PR ที่ถูกต้องถูกบล็อกจาก transitive `devDependencies` ที่ยังไม่มี upstream patch ระบบจึงใช้ **Dependabot Alerts + Dependabot Security Updates + การคัดกรอง (Triage)** แทน:
+  - **Critical / High (Production dependencies):** คัดกรองและอัปเดต/แก้ทันทีภายใน **48 ชั่วโมง** (ทดสอบด้วย `npm run verify` และปล่อย release ตามขั้นตอน)
+  - **Critical / High (Development / CI tooling only):** ประเมินความเสี่ยงจริงภายใน **7 วัน** และอัปเดตผ่าน Dependabot PR หรืออัปเกรดตรงหากกระทบสภาพแวดล้อมพัฒนา/CI
+  - **Moderate / Low:** รวบรวมจัดการในรอบบำรุงรักษารายสัปดาห์ผ่าน grouped Dependabot PRs หากยังไม่มี upstream patch ให้เปิด GitHub Issue บันทึกขอบเขตผลกระทบและแผนติดตาม
 
 ---
 
