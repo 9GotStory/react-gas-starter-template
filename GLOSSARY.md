@@ -10,6 +10,6 @@ _Avoid_: Row, entry, record
 
 ## Sheet-to-Entity Mapping
 
-| Sheet Name                 | Entity Name | Key Columns                       | Notes                                                                          |
-| -------------------------- | ----------- | --------------------------------- | ------------------------------------------------------------------------------ |
-| `Items` _(starter sample)_ | `Item`      | `id`, `code`, `name`, `createdAt` | All text columns formatted as `@` before write; replace in downstream projects |
+| Sheet Name                 | Entity Name | Key Columns                       | Notes                                                           |
+| -------------------------- | ----------- | --------------------------------- | --------------------------------------------------------------- |
+| `Items` _(starter sample)_ | `Item`      | `id`, `code`, `name`, `createdAt` | Preserves leading zeros as text; replace in downstream projects |

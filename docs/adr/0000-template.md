@@ -1,23 +1,23 @@
-# ADR-0000: [Short Title]
+# {Short title of the decision}
 
-- **Status:** Proposed | Accepted | Superseded
-- **Date:** YYYY-MM-DD
+<!--
+Record an ADR only when ALL THREE criteria are true (see .agents/skills/domain-modeling/ADR-FORMAT.md):
+1. Hard to reverse: changing this later requires significant migration or rewrite.
+2. Surprising without context: a future reader would wonder "why did they do it this way?"
+3. The result of a real trade-off: genuine alternatives existed and one was chosen for specific reasons.
 
-## Filter Criteria (Record an ADR only if at least one applies)
+Optional sections below (Status, Considered Options, Consequences) should only be kept when they add genuine value.
+-->
 
-- [ ] **Hard to reverse:** Changing this later requires significant migration or rewrite.
-- [ ] **Confusing without context:** Future contributors would wonder why this was done.
-- [ ] **Real trade-offs:** Multiple viable options existed with meaningful pros/cons.
+Status: proposed
 
-## Context
+{1–3 sentences: what is the context, what did we decide, and why.}
 
-What problem or constraint are we addressing?
+## Considered Options
 
-## Decision
-
-What did we decide to do?
+- **{Option A} (Selected):** {Why this option was chosen.}
+- **{Option B}:** {Why this genuine alternative was not chosen.}
 
 ## Consequences
 
-- **Positive:**
-- **Negative / Trade-offs:**
+- {Key non-obvious downstream effect or trade-off.}

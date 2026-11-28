@@ -18,8 +18,9 @@ Single-context repo (this repo's layout):
 /
 ├── GLOSSARY.md
 ├── docs/adr/
+│   ├── 0000-template.md
 │   ├── 0001-two-workspace-contracts-and-optional-zod.md
-│   └── 0002-require-explicit-spreadsheet-id.md
+│   └── ... (through 0007-multi-agent-ssot-and-compatibility-adapters.md)
 └── frontend/ & backend/
 ```
 

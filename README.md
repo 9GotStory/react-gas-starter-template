@@ -2,7 +2,10 @@
 
 GitHub Base Template Repository แบบ Monorepo สำหรับสร้างเว็บแอปด้วย **React (Vite + TypeScript + Tailwind CSS + TanStack Query)** คู่กับ **Google Apps Script (GAS) Web App + Google Sheets** ที่เขียนด้วย TypeScript, bundle ด้วย **esbuild** และ deploy ผ่าน **`@google/clasp` v3** พร้อมวางระบบเอกสารและสกิลสำหรับ AI-Assisted Development ครบชุด
 
-> **หมายเหตุ (Base Template Scope):** Repository นี้เป็น **Base Template ที่ยังไม่ได้เชื่อมต่อ Google Apps Script หรือ Google Sheets จริง** การตรวจสอบตัว Template ให้ทำแบบ **Offline Verification เท่านั้น** (`npm ci` และ `npm run verify` ซึ่งรัน `check`, `build`, `verify:gas-bundle` และ Playwright E2E พร้อม dev-only Mock API) — AI Agent ต้องไม่สร้าง GAS Project, ผูก Google Sheets, รัน `clasp push`/`deploy` หรือร้องขอ Credentials เพื่อทดสอบ Base Template นี้
+> **หมายเหตุ (Base Template Offline vs. Downstream Connected Project):** Repository นี้เป็น **Base Template ที่ยังไม่ได้เชื่อมต่อ Google Apps Script หรือ Google Sheets จริง** และมี **zero Optional libraries pre-installed**
+>
+> - **ใน Base Template (Offline Verification เท่านั้น):** ตรวจสอบด้วย `npm ci` และ `npm run verify` (`check` → `build` → `verify:gas-bundle` → Playwright E2E) พร้อม dev-only Mock API (`npm run dev`) — AI Agent ต้องไม่สร้าง GAS Project, ผูก Google Sheets, รัน `clasp push`/`deploy` หรือร้องขอ Credentials เพื่อทดสอบตัว Template นี้
+> - **ใน Downstream Project (Connected):** เมื่อกด **Use this template** สร้างโปรเจกต์จริงแล้ว จึงผูก `clasp -P` แยก Staging/Production, ตั้งค่า `SPREADSHEET_ID` ใน Script Properties, ผ่าน Security Review ก่อนเปิด `ANYONE_ANONYMOUS` และทดสอบ Live GAS CORS/redirect ในเบราว์เซอร์จริงตาม `docs/runbooks/deployment-and-operations.md`
 
 ---
 
@@ -38,6 +41,15 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
   - `.agents/skills/` เป็นโฟลเดอร์สกิลกลางเพียงจุดเดียวที่ commit ใน Git ติดตั้งเฉพาะชุด **Canonical Shared Skills 15 ตัว** ที่ตรึงเวอร์ชัน/commit hash ชัดเจนใน `skills-lock.json` (ไม่ auto-upgrade เป็น `latest` และไม่ผูกกับเอเจนต์ใดเอเจนต์หนึ่ง): **Matt Pocock Workflow 12 ตัว**, **UI/UX Pro Max** (ออกแบบ Design System — `python3` จำเป็น**เฉพาะ**สำหรับสคริปต์ `search.py` ของสกิลนี้เท่านั้น ไม่จำเป็นสำหรับ Application Runtime, Build หรือ CI), **Vercel `web-design-guidelines`** (ตรวจสอบคุณภาพ UI และ Accessibility แบบ offline จาก ruleset ที่แนบมา) และ **Playwright CLI Skill** (`.agents/skills/playwright-cli/` สำหรับ Interactive Browser QA) ส่วน **Anthropic `frontend-design`** และ **Impeccable** ถูกจัดอยู่ในระดับ **Optional** (ไม่ได้ติดตั้งล่วงหน้าใน Base Template) เพื่อไม่ให้บทบาทซ้ำซ้อนกัน
   - `.claude/skills` ถูก gitignore ไว้และสร้างเฉพาะเครื่องเมื่อผู้ใช้ opt-in ผ่าน `npm run agents:setup -- --agent claude` (offline, idempotent, non-destructive ไม่ทับโฟลเดอร์/คอนฟิกเดิมของผู้ใช้) และตรวจ drift แบบ offline ใน `npm run check` ด้วย `npm run agents:check` โดยไม่ต้องติดตั้ง binary ของ AI agent, credentials หรืออินเทอร์เน็ต
 
+### Capability Tiers & Manual Release Gates (`CODING_STANDARDS.md`)
+
+Base Template ตั้งใจคงเฉพาะ **Core** เท่านั้นและ **ไม่ติดตั้งไลบรารีระดับ Optional ล่วงหน้า** เพื่อให้ GAS bundle เล็กและ cold-start เร็ว (ดูตารางเกณฑ์การเลือกใช้ฉบับเต็มใน [`CODING_STANDARDS.md`](CODING_STANDARDS.md)):
+
+- **Core (ติดตั้งพร้อมใช้):** Stack หลัก (`React 19`, `Vite 7`, `Tailwind v4`, `TanStack Query v5`, `TypeScript + esbuild + @google/clasp v3`), Runtime Pinning (`Node.js 26 Active LTS + npm 11`), Engineering Quality Baseline, Security & Data Integrity Baseline และ Core AI Tooling (15 pinned skills + Context7/Playwright MCP)
+- **Optional (ไม่ได้ติดตั้งล่วงหน้าใน Base Template — เพิ่มเฉพาะเมื่อ Spec ต้องการ):** Zod v4 (`zod/mini` + `config({ jitless: true })` สำหรับ GAS V8), React Router, shadcn/ui, Lucide React, React Hook Form, TanStack Table, Recharts (ค่าเริ่มต้นสำหรับงานกราฟทั่วไป) / Apache ECharts (ชุดข้อมูลขนาดใหญ่), **Server-Side Idempotency** _(Optional ใน Base Template แต่ **บังคับใช้** ในโปรเจกต์ปลายทางที่มี transactional/non-duplicable writes ด้วย `requestId` ภายใน `LockService` และเก็บ durable key ใน Google Sheet โดยไม่พึ่ง `CacheService` อย่างเดียว)_, Pagination / Batch Chunking และ Optional UI/UX Skills (Anthropic `frontend-design`, `Impeccable`)
+- **Project-Specific:** Authentication / Authorization (ไม่มี placeholder auth ใน Base Template; ADR-0003) และ domain/external integrations ตามความต้องการธุรกิจ
+- **Manual Release Acceptance Gates (นอกเหนือจาก automated gate):** ผลผ่านของ `@axe-core/playwright` และ `npm run agents:check` เป็นเพียง minimum automated gates — ก่อนปล่อย release จริงต้องตรวจ keyboard/focus/semantic accessibility ด้วยมือตาม WCAG 2.2 AA และยืนยัน Skills Discovery, Instructions loading และ Context Continuity จริงใน **Antigravity**, **Claude Code** และ **OpenAI Codex CLI**
+
 ---
 
 ## โครงสร้างโปรเจกต์
@@ -45,9 +57,10 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 ```text
 .
 ├── AGENTS.md                        # คู่มือหลักแบบ Read on Demand สำหรับ AI Agent (SSOT)
+├── CHANGELOG.md                     # ประวัติการเปลี่ยนแปลงตามมาตรฐาน Keep a Changelog
 ├── CLAUDE.md                        # ไฟล์ข้อความธรรมดา (@AGENTS.md) รองรับ Windows/Linux/macOS ไม่ใช้ POSIX symlink
-├── CODING_STANDARDS.md              # กฎสถาปัตยกรรม FE/GAS ความปลอดภัย การเทส และข้อยกเว้น
-├── GLOSSARY.md                      # โครงเปล่าสำหรับคำศัพท์โดเมนและ Sheet-to-entity mapping
+├── CODING_STANDARDS.md              # กฎสถาปัตยกรรม FE/GAS, Capability Tiers, ความปลอดภัย, การเทส และข้อยกเว้น
+├── GLOSSARY.md                      # คำศัพท์โดเมนตัวอย่างเริ่มต้น (Item / Items) — แทนที่ด้วยโดเมนจริงในโปรเจกต์ปลายทาง
 ├── .mcp.json                        # การตั้งค่า Context7 MCP + Playwright MCP สำหรับ Claude Code (zero secrets)
 ├── .codex/
 │   └── config.toml                  # การตั้งค่า Context7 MCP + Playwright MCP สำหรับ Codex CLI (parity กับ .mcp.json)
@@ -89,7 +102,12 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 │       └── tsconfig.json            # TypeScript strict config สำหรับชุด contract tests
 ├── docs/
 │   ├── adr/
-│   │   └── 0000-template.md         # เทมเพลต ADR พร้อมเกณฑ์กรอง 3 ข้อ
+│   │   ├── 0000-template.md         # เทมเพลต ADR (บันทึกเฉพาะเมื่อครบทั้ง 3 เกณฑ์)
+│   │   └── 0001..0007-*.md          # บันทึกการตัดสินใจสถาปัตยกรรมหลักของ Template (ADR-0001 ถึง ADR-0007)
+│   ├── agents/
+│   │   ├── domain.md                # การอ้างอิง GLOSSARY.md และ docs/adr/ (Single-context)
+│   │   ├── issue-tracker.md         # ข้อกำหนดการใช้ GitHub Issues ผ่าน gh CLI สำหรับ Spec และ Tickets
+│   │   └── triage-labels.md         # ตารางป้ายกำกับ 5 บทบาทมาตรฐาน (needs-triage .. wontfix)
 │   └── runbooks/
 │       └── deployment-and-operations.md # คู่มือปฏิบัติการ Staging/Production, Security Review, Release/Hotfix, Rollback, Migration & Cloud Logging
 ├── .agents/
@@ -233,15 +251,13 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
    npm run dev
    ```
 
-### ขั้นที่ 3: ตั้งค่าสกิลสำหรับ AI Agent (ทำครั้งเดียวต่อโปรเจกต์ — Antigravity / Claude Code / Codex CLI)
+### ขั้นที่ 3: ตรวจสอบหรือปรับแต่งการตั้งค่าสกิลสำหรับ AI Agent (ทำเฉพาะเมื่อเปลี่ยน Issue Tracker / Layout — Antigravity / Claude Code / Codex CLI)
 
-เปิด **แชทใหม่** ใน Antigravity, Claude Code หรือ Codex CLI (ใช้ `.agents/skills/` และ `AGENTS.md` ชุดเดียวกัน) แล้วรันคำสั่ง:
+Template นี้ตั้งค่าชุดสกิล Matt Pocock ไว้พร้อมใช้งานแล้วสำหรับ **GitHub Issues (`gh` CLI)**, ป้ายกำกับ 5 บทบาทมาตรฐาน และ Single-context domain docs ใน `docs/agents/` (`issue-tracker.md`, `triage-labels.md`, `domain.md`) — ในโปรเจกต์ปลายทางสามารถใช้งาน `/grill-with-docs` → `/to-spec` → `/to-tickets` → `/implement` → `/code-review` ได้ทันที หรือรันคำสั่งด้านล่างใน **แชทใหม่** เฉพาะเมื่อต้องการเปลี่ยนระบบ Issue Tracker หรือโครงสร้างโดเมน:
 
 ```text
 /setup-matt-pocock-skills
 ```
-
-เพื่อผูกการทำงานของชุดสกิล Matt Pocock เข้ากับ Issue Tracker (ค่าเริ่มต้นของ Template นี้ตั้งค่าไว้ที่ GitHub Issues ใน `docs/agents/issue-tracker.md` หรือปรับใช้ `.scratch/` สำหรับงาน local ตามต้องการ)
 
 ---
 
@@ -249,15 +265,15 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 ### ภาพรวม 7 ขั้นตอนและการจัดการแชท/Context
 
-|  ขั้น   | เป้าหมาย                            | คำสั่ง / สกิล                                                   | การจัดการแชท / Context                              |
-| :---: | ---------------------------------- | ------------------------------------------------------------ | -------------------------------------------------- |
-| **1** | ติดตั้ง & ผูก GAS ด้วย `clasp`          | `npm install`, `gas:login`, `npm run check && npm run build` | **Terminal**                                       |
-| **2** | ผูกชุดสกิลกับ `.scratch/`              | `/setup-matt-pocock-skills`                                  | **แชทใหม่ (ทำครั้งเดียวต่อโปรเจกต์)**                    |
-| **3** | ตกลงขอบเขต, คำศัพท์ และ Sheet Schema | `/grill-with-docs`                                           | **แชท A (ปิด Plan Mode)**                           |
-| **4** | ออกแบบ UI & สร้าง Design System     | `/ui-ux-pro-max`                                             | **แชท B (แยกแชทใหม่)**                              |
-| **5** | แปลงเป็น Spec และแตก Tickets        | `/to-spec` → `/to-tickets`                                   | **กลับไปแชท A** _(แนะนำ commit เอกสารก่อนโค้ด)_       |
-| **6** | ลงมือพัฒนาโค้ด + เทสทีละงาน            | `/implement`                                                 | **แชทใหม่ทุก Ticket (ทีละ 1 Ticket)**                 |
-| **7** | รีวิวมาตรฐาน & สเปกก่อนปิดงาน          | `/code-review` + `npm run check && npm run build`            | **แชทใหม่หรือท้าย Ticket (commit/WIP commit ก่อนรีวิว)** |
+|  ขั้น   | เป้าหมาย                                              | คำสั่ง / สกิล                                                                         | การจัดการแชท / Context                              |
+| :---: | ---------------------------------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------- |
+| **1** | ตรวจ Offline Baseline _(และผูก GAS เมื่อเป็นโปรเจกต์จริง)_ | `npm ci && npm run verify` _(Downstream: `gas:login`, `clasp -P` Staging/Prod)_    | **Terminal**                                       |
+| **2** | ตรวจ/ปรับตั้งค่าสกิลกับ GitHub Issues                      | ตรวจสอบ `docs/agents/` _(หรือรัน `/setup-matt-pocock-skills` เฉพาะเมื่อเปลี่ยน Tracker)_ | **แชทใหม่ (ทำครั้งเดียวต่อโปรเจกต์ถ้าต้องการเปลี่ยน)**       |
+| **3** | ตกลงขอบเขต, คำศัพท์ และ Sheet Schema                   | `/grill-with-docs`                                                                 | **แชท A (ปิด Plan Mode)**                           |
+| **4** | ออกแบบ UI & สร้าง Design System                       | `/ui-ux-pro-max`                                                                   | **แชท B (แยกแชทใหม่)**                              |
+| **5** | แปลงเป็น Spec และแตก Tickets บน GitHub Issues         | `/to-spec` → `/to-tickets`                                                         | **กลับไปแชท A** _(แนะนำ commit เอกสารก่อนโค้ด)_       |
+| **6** | ลงมือพัฒนาโค้ด + เทสทีละงาน                              | `/implement #<ticket-number>`                                                      | **แชทใหม่ทุก Ticket (ทีละ 1 Ticket)**                 |
+| **7** | รีวิวมาตรฐาน & สเปกก่อนปิดงาน                            | `/code-review` + `npm run verify`                                                  | **แชทใหม่หรือท้าย Ticket (commit/WIP commit ก่อนรีวิว)** |
 
 ### ตัวอย่าง Prompt พร้อมก๊อปในแต่ละขั้น
 
@@ -267,7 +283,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 /grill-with-docs
 ช่วยซักถามเพื่อวางขอบเขตระบบ [ชื่อระบบ/ฟีเจอร์] ที่เชื่อมต่อ Google Sheets
 - อัปเดตคำศัพท์และ Sheet-to-entity mapping ลง GLOSSARY.md
-- หากมีการตัดสินใจทางสถาปัตยกรรมที่เข้าเกณฑ์ 3 ข้อ ให้บันทึก ADR ใน docs/adr/
+- หากมีการตัดสินใจทางสถาปัตยกรรมที่เข้าครบทั้ง 3 เกณฑ์ ให้บันทึก ADR ใน docs/adr/
 ```
 
 #### ขั้นที่ 4 — `/ui-ux-pro-max` (แชท B — แยกแชทใหม่)
@@ -287,14 +303,14 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 ```text
 /to-spec
-สรุปข้อตกลงทั้งหมดจากแชทนี้ร่วมกับ GLOSSARY.md และ design-system/ เป็น Spec ไว้ใน .scratch/
+สรุปข้อตกลงทั้งหมดจากแชทนี้ร่วมกับ GLOSSARY.md และ design-system/ เป็น Spec แล้ว publish ลง GitHub Issues ตาม docs/agents/issue-tracker.md
 ```
 
-เมื่อตรวจ Spec เรียบร้อยแล้ว ให้รันต่อในแชท A:
+เมื่อตรวจ Spec Issue เรียบร้อยแล้ว ให้รันต่อในแชท A:
 
 ```text
 /to-tickets
-แตก Spec ล่าสุดใน .scratch/ ออกเป็น Tickets ย่อยที่จบได้ใน 1 แชทต่อ 1 Ticket
+แตก Spec จาก GitHub Issue #<spec-number> ออกเป็น Tickets ย่อยที่จบได้ใน 1 แชทต่อ 1 Ticket บน GitHub Issues
 ```
 
 > **แนะนำ:** ก่อนเริ่มลงมือเขียนโค้ด ให้ `git commit` เอกสารตั้งต้น (`GLOSSARY.md`, `docs/adr/`, `design-system/`) เก็บไว้ก่อน เพื่อให้ `git diff` ตอน `/code-review` สะอาดและเห็นเฉพาะโค้ดของฟีเจอร์
@@ -302,25 +318,24 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 #### ขั้นที่ 6 — `/implement` (แชทใหม่ — ทีละ 1 Ticket)
 
 ```text
-/implement
-ทำเฉพาะ Ticket [ชื่อไฟล์หรือหมายเลข Ticket ใน .scratch/]
-อ้างอิง CODING_STANDARDS.md, GLOSSARY.md และ design-system/ อย่างเคร่งครัด และรัน npm run check && npm run build ให้ผ่าน
+/implement #<ticket-number>
+อ้างอิง CODING_STANDARDS.md, GLOSSARY.md และ design-system/ อย่างเคร่งครัด และรัน npm run verify ให้ผ่าน
 ```
 
 #### ขั้นที่ 7 — `/code-review` (commit ก่อนรีวิว)
 
 1. ทำ commit (หรือ WIP commit) ก่อน เพื่อให้ `/code-review` ตรวจจาก `git diff` ได้แม่นยำ:
    ```bash
-   git add . && git commit -m "wip: implement <ticket-name>"
+   git add . && git commit -m "wip: implement #<ticket-number>"
    ```
-2. รันสกิลรีวิว 2 แกน (Standards เทียบ `CODING_STANDARDS.md` และ Spec เทียบ `.scratch/`):
+2. รันสกิลรีวิว 2 แกน (Standards เทียบ `CODING_STANDARDS.md` และ Spec เทียบ GitHub Issue `#<ticket-number>`):
    ```text
    /code-review
-   รีวิวการเปลี่ยนแปลงเทียบกับ CODING_STANDARDS.md และ Spec/Ticket ใน .scratch/
+   รีวิวการเปลี่ยนแปลงเทียบกับ CODING_STANDARDS.md และ GitHub Issue #<ticket-number>
    ```
 3. หลังแก้ครบทุกคอมเมนต์ ให้ปิดท้ายด้วย:
    ```bash
-   npm run check && npm run build
+   npm run verify
    ```
 
 ---
@@ -420,7 +435,7 @@ GitHub Base Template Repository แบบ Monorepo สำหรับสร้�
 
 - `.env*` (ยกเว้น `.env.example` เช่น `frontend/.env.example`, `backend/.env.example`)
 - `.clasp*.json` และ `.clasprc.json` (track เฉพาะ `backend/.clasp.json.example`)
-- `.scratch/` (ที่พัก Specs และ Tickets แบบ local)
+- `.scratch/` (local scratchpad เฉพาะเครื่อง — Specs และ Tickets หลักใช้ GitHub Issues ตาม `docs/agents/issue-tracker.md`)
 - `.claude/skills` (local skills adapter สำหรับ Claude Code ที่สร้างจาก `npm run agents:setup -- --agent claude`)
 - `.playwright-cli/`, `playwright-report/`, `test-results/` (snapshots, reports และ artifacts จาก Playwright)
 - `node_modules/`, `dist/`, `build/`

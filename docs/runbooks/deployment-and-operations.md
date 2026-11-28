@@ -68,6 +68,7 @@ Before **any** deployment that changes `webapp.access` to `"ANYONE_ANONYMOUS"` (
 - [ ] **Server-side token verification implemented** for every non-public read or write: verify cryptographic signature, issuer (`iss`), audience (`aud`), and expiration (`exp`), then enforce action/role authorization before touching Sheets.
 - [ ] **Safe token transport:** send tokens strictly in the `POST` body (never in URL query parameters, never as static `VITE_*` frontend secrets, and never in custom `Authorization` headers that trigger unsupported GAS CORS preflight requests).
 - [ ] **Least-privilege scopes:** confirm `backend/appsscript.json` requests only the minimum `oauthScopes` needed.
+- [ ] **Server-side idempotency (transactional downstream projects):** for transactional, financial, inventory, or non-duplicable writes, confirm a caller-supplied `requestId` is verified inside `LockService.getScriptLock()` against a durable Google Sheet key (never `CacheService` alone; see `CODING_STANDARDS.md` `[SEC-5]`).
 - [ ] **Real-browser verification (Staging):** verify in a real browser (Playwright CLI/MCP) that cross-origin requests follow the HTTP `302` redirect to `script.googleusercontent.com` and return valid JSON (not a Google Sign-In HTML page / `NON_JSON_RESPONSE`).
 
 ---
@@ -79,7 +80,7 @@ Merging into `main` **never** auto-deploys Production (ADR-0006). GitHub Actions
 ### Step-by-Step Promotion
 
 1. **Select a Release Candidate (RC) commit on `main`:**
-   - Ensure the PR passed `quality` + `e2e` CI checks and merged into `main`.
+   - Ensure the PR (including `CHANGELOG.md` updates for the upcoming SemVer release) passed `quality` + `e2e` CI checks and merged into `main`.
    - Pull `main` locally and confirm a clean working tree (`git status`) and passing `npm run verify`.
 2. **Deploy the RC commit to Staging (Integration + UAT):**
    ```bash
